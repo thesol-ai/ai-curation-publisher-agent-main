@@ -715,7 +715,7 @@ Common settings:
 MEDIA_PROCESSING_MODE=telegram_file_id_reuse
 MEDIA_PROCESSING_MODE=github_actions
 GITHUB_MEDIA_PROCESSOR_ENABLED=true
-GITHUB_MEDIA_PROCESSOR_REPOSITORY=pourebadi/ai-curation-publisher-agent
+GITHUB_MEDIA_PROCESSOR_REPOSITORY=your-org/your-repo
 GITHUB_MEDIA_PROCESSOR_WORKFLOW_ID=media-processor.yml
 GITHUB_MEDIA_PROCESSOR_REF=main
 GITHUB_MEDIA_PROCESSOR_CALLBACK_URL=https://your-worker.workers.dev/internal/media/processing/callback

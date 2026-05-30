@@ -24,7 +24,7 @@ MEDIA_PROCESSING_MODE = "telegram_file_id_reuse"
 GITHUB_MEDIA_PROCESSOR_ENABLED = "false"
 GITHUB_MEDIA_PROCESSOR_REPOSITORY = ""
 GITHUB_MEDIA_PROCESSOR_WORKFLOW_ID = "media-processor.yml"
-GITHUB_MEDIA_PROCESSOR_REF = "test/dashboard-phase7-category-wizard-prompts"
+GITHUB_MEDIA_PROCESSOR_REF = "main"
 GITHUB_MEDIA_PROCESSOR_CALLBACK_URL = ""
 TELEGRAM_MEDIA_MAX_PHOTO_MB = "9"
 TELEGRAM_MEDIA_MAX_FILE_MB = "49"
@@ -60,7 +60,7 @@ WORDPRESS_DEFAULT_STATUS = "draft"
 # Production uses [env.production] below.
 [[d1_databases]]
 binding = "DB"
-database_name = "curator_mvp"
+database_name = "your_database_name"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "packages/db/migrations"
 
@@ -89,7 +89,7 @@ MEDIA_PROCESSING_MODE = "telegram_file_id_reuse"
 GITHUB_MEDIA_PROCESSOR_ENABLED = "false"
 GITHUB_MEDIA_PROCESSOR_REPOSITORY = ""
 GITHUB_MEDIA_PROCESSOR_WORKFLOW_ID = "media-processor.yml"
-GITHUB_MEDIA_PROCESSOR_REF = "test/dashboard-phase7-category-wizard-prompts"
+GITHUB_MEDIA_PROCESSOR_REF = "main"
 GITHUB_MEDIA_PROCESSOR_CALLBACK_URL = ""
 TELEGRAM_MEDIA_MAX_PHOTO_MB = "9"
 TELEGRAM_MEDIA_MAX_FILE_MB = "49"
@@ -123,7 +123,7 @@ WORDPRESS_DEFAULT_STATUS = "draft"
 
 [[env.production.d1_databases]]
 binding = "DB"
-database_name = "curator_mvp"
+database_name = "your_database_name"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "packages/db/migrations"
 
@@ -141,7 +141,7 @@ migrations_dir = "packages/db/migrations"
 crons = ["*/30 * * * *"]
 
 [env.staging]
-name = "ai-curation-publisher-agent-staging"
+name = "your-worker-staging"
 workers_dev = true
 
 [env.staging.vars]
@@ -165,7 +165,7 @@ MEDIA_PROCESSING_MODE = "github_actions"
 GITHUB_MEDIA_PROCESSOR_ENABLED = "true"
 GITHUB_MEDIA_PROCESSOR_REPOSITORY = ""
 GITHUB_MEDIA_PROCESSOR_WORKFLOW_ID = "media-processor.yml"
-GITHUB_MEDIA_PROCESSOR_REF = "test/dashboard-phase7-category-wizard-prompts"
+GITHUB_MEDIA_PROCESSOR_REF = "main"
 GITHUB_MEDIA_PROCESSOR_CALLBACK_URL = ""
 TELEGRAM_MEDIA_MAX_PHOTO_MB = "9"
 TELEGRAM_MEDIA_MAX_FILE_MB = "49"
@@ -209,6 +209,6 @@ APIFY_MAX_ITEMS_PER_RUN = "100"
 APIFY_ENABLED_PLATFORMS = "instagram,x,linkedin"
 [[env.staging.d1_databases]]
 binding = "DB"
-database_name = "curator_mvp_staging"
+database_name = "your_database_name_staging"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "packages/db/migrations"

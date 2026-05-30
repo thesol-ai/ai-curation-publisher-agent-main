@@ -408,7 +408,7 @@ async function safePromptSummary(env: Env): Promise<{ profiles: number; activePr
 function readEnvironmentDetails(env: Env, serviceName: string): Record<string, unknown> {
   const environment = env.ENVIRONMENT ?? "unknown";
   const inferredDatabaseName = env.D1_DATABASE_NAME
-    ?? (environment === "staging" ? "curator_mvp_staging" : environment === "production" ? "curator_mvp" : "curator_mvp");
+    ?? (environment === "staging" ? "your_database_name_staging" : environment === "production" ? "your_database_name" : "your_database_name");
   const databaseId = env.D1_DATABASE_ID;
   return {
     environment,

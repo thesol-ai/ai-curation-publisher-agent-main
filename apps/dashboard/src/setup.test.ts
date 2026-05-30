@@ -33,7 +33,7 @@ describe("dashboard setup helpers", () => {
 
   it("classifies invalid and CORS-like connection states", () => {
     expect(validateWorkerBaseUrl("not a url").ok).toBe(false);
-    expect(validateWorkerBaseUrl("https://ai-curation-publisher-agent.mpourebadi.workers.dev")).toMatchObject({ ok: true });
+    expect(validateWorkerBaseUrl("https://your-worker.workers.dev")).toMatchObject({ ok: true });
     expect(describeConnectionBundle({ health: fail(0, "cors_or_network_error", "Browser blocked the request, likely CORS"), status: fail(0, "cors_or_network_error", "Browser blocked the request, likely CORS") })).toBe("cors_blocked");
   });
 
