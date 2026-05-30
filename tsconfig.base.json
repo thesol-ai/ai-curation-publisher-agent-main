@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "useDefineForClassFields": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@curator/core": ["packages/core/src/index.ts"],
+      "@curator/db": ["packages/db/src/index.ts"],
+      "@curator/providers": ["packages/providers/src/index.ts"],
+      "@curator/ai": ["packages/ai/src/index.ts"],
+      "@curator/telegram": ["packages/telegram/src/index.ts"],
+      "@curator/wordpress": ["packages/wordpress/src/index.ts"],
+      "@curator/media": ["packages/media/src/index.ts"],
+      "@curator/scheduler": ["packages/scheduler/src/index.ts"],
+      "@curator/observability": ["packages/observability/src/index.ts"]
+    }
+  }
+}

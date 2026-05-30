@@ -1,0 +1,199 @@
+.guidePanel,
+.stuckState {
+  margin: var(--space-5) 0;
+  padding: var(--space-5);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.88));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.guidePanel.compact {
+  margin: var(--space-4) 0;
+  padding: var(--space-4);
+  background: rgba(248, 250, 252, 0.86);
+}
+
+.guidePanel h3,
+.guidePanel strong,
+.stuckState strong {
+  display: block;
+  margin: 0 0 var(--space-2);
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+.guidePanel p,
+.guideItem p,
+.helpTopic p,
+.stuckState p {
+  margin: 0 0 var(--space-3);
+  color: var(--muted);
+}
+
+.guideGrid,
+.helpGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.helpGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.guideItem,
+.helpTopic {
+  padding: var(--space-4);
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.guideItem strong,
+.helpTopic strong {
+  margin-bottom: var(--space-2);
+}
+
+.configLabel {
+  display: inline-flex;
+  width: fit-content;
+  margin: 0 0 var(--space-2);
+  padding: 0.24rem 0.5rem;
+  color: var(--primary-strong);
+  background: var(--primary-soft);
+  border: 1px solid rgba(49, 94, 251, 0.12);
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 820;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.commandList {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.copyCommand {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2);
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.copyCommand code {
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.copyCommand button {
+  min-height: 2.25rem;
+  padding: 0.48rem 0.72rem;
+}
+
+.stuckState {
+  background: linear-gradient(135deg, var(--warning-bg), #ffffff);
+  border-color: rgba(184, 107, 0, 0.2);
+}
+
+.stuckState ul {
+  margin: 0 0 var(--space-4);
+  color: var(--ink-soft);
+}
+
+.stuckState li {
+  margin: 0.35rem 0;
+}
+
+.guidePanel summary {
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 820;
+}
+
+.stepRail button {
+  min-height: 4.75rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.stepRail button:hover:not(:disabled) {
+  transform: none;
+}
+
+.stepRail .step-active {
+  background: #172554;
+  color: #ffffff;
+  border-color: #172554;
+}
+
+.stepRail .step-complete {
+  background: #ecfdf3;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+.stepRail .step-needs-action {
+  background: #fff7ed;
+  color: #9a3412;
+  border-color: #fed7aa;
+}
+
+.stepRail .step-optional {
+  background: #f8fafc;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+
+.stepRail .step-locked {
+  background: #f1f5f9;
+  color: #64748b;
+  border-color: #e2e8f0;
+  opacity: 0.85;
+}
+
+.stepRail button span,
+.stepRail button small {
+  display: block;
+  line-height: 1.25;
+}
+
+.stepRail button small {
+  margin-top: 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 720;
+}
+
+.settingsForm.compact {
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.wizardContent,
+.readinessList {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.readinessRow {
+  padding: var(--space-4);
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.readinessRow p {
+  margin: var(--space-2) 0 0;
+  color: var(--muted);
+}

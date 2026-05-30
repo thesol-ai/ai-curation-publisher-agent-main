@@ -1,0 +1,16 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/db" },
+    { "path": "./packages/providers" },
+    { "path": "./packages/ai" },
+    { "path": "./packages/telegram" },
+    { "path": "./packages/wordpress" },
+    { "path": "./packages/media" },
+    { "path": "./packages/scheduler" },
+    { "path": "./packages/observability" },
+    { "path": "./apps/worker-api" },
+    { "path": "apps/dashboard" }
+  ]
+}

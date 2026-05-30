@@ -1,0 +1,44 @@
+{
+  "name": "ai-curation-publisher-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Incremental provider-agnostic social content curator for Telegram and WordPress.",
+  "type": "module",
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "lint": "node scripts/lint.mjs",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run",
+    "setup:cloudflare": "node scripts/setup-cloudflare.mjs",
+    "check:production": "node scripts/check-production-readiness.mjs",
+    "dev": "pnpm --filter @curator/worker-api dev",
+    "worker:dev": "pnpm --filter @curator/worker-api dev",
+    "worker:deploy": "wrangler deploy --config wrangler.toml",
+    "worker:deploy:production": "wrangler deploy --env production --config wrangler.toml",
+    "worker:health": "curl -fsS ${WORKER_BASE_URL:-http://localhost:8787}/health",
+    "worker:smoke": "curl -fsS ${WORKER_BASE_URL:-http://localhost:8787}/health && echo && curl -fsS ${WORKER_BASE_URL:-http://localhost:8787}/status && echo",
+    "worker:e2e:mock": "curl -fsS -X POST ${WORKER_BASE_URL:-http://localhost:8787}/internal/e2e/mock-pipeline",
+    "dashboard:dev": "pnpm --filter @curator/dashboard dev",
+    "dashboard:build": "pnpm --filter @curator/dashboard build",
+    "dashboard:preview": "pnpm --filter @curator/dashboard preview",
+    "db:migrate:local": "wrangler d1 migrations apply curator_mvp --local --config wrangler.toml",
+    "d1:migrate:local": "pnpm db:migrate:local",
+    "d1:migrate:remote": "wrangler d1 migrations apply curator_mvp --remote --config wrangler.toml",
+    "d1:migrate:production": "wrangler d1 migrations apply curator_mvp --remote --env production --config wrangler.toml",
+    "telegram:mvp-smoke": "node scripts/telegram-mvp-smoke.mjs",
+    "media:process:local": "python scripts/media_processor.py",
+    "telegram:set-webhook": "node scripts/telegram-set-webhook.mjs",
+    "worker:deploy:staging": "wrangler deploy --env staging --config wrangler.toml"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250109.0",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8",
+    "wrangler": "^3.100.0"
+  }
+}

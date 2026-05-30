@@ -1,0 +1,20 @@
+{
+  "name": "@curator/worker-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "wrangler dev --config ../../wrangler.toml",
+    "lint": "echo 'lint handled at repository root'",
+    "typecheck": "tsc -p tsconfig.json --pretty false",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@curator/ai": "workspace:*",
+    "@curator/core": "workspace:*",
+    "@curator/db": "workspace:*",
+    "@curator/providers": "workspace:*",
+    "@curator/telegram": "workspace:*"
+  }
+}
