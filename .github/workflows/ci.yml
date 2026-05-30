@@ -51,3 +51,6 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Dashboard build
+        run: pnpm dashboard:build
