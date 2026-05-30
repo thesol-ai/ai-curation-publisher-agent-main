@@ -158,15 +158,24 @@ MAX_AI_ITEMS_PER_RUN = "0"
 MAX_PROVIDER_ITEMS_PER_RUN = "5"
 MAX_PUBLISH_ITEMS_PER_RUN = "0"
 TELEGRAM_REAL_REVIEW_ENABLED = "true"
-TELEGRAM_FINAL_PUBLISH_ENABLED = "true"
+# SAFETY: Keep TELEGRAM_FINAL_PUBLISH_ENABLED=false in staging to prevent accidental real publishing.
+# Set to "true" only after explicit manual verification of routes and final channel config.
+TELEGRAM_FINAL_PUBLISH_ENABLED = "false"
 TELEGRAM_PUBLISH_SCHEDULER_ENABLED = "false"
 TELEGRAM_PUBLISH_DUE_LIMIT = "5"
 MEDIA_PROCESSING_MODE = "github_actions"
 GITHUB_MEDIA_PROCESSOR_ENABLED = "true"
+# Set this to your actual GitHub repo, e.g. "thesol-ai/ai-curation-publisher-agent-main"
 GITHUB_MEDIA_PROCESSOR_REPOSITORY = ""
 GITHUB_MEDIA_PROCESSOR_WORKFLOW_ID = "media-processor.yml"
 GITHUB_MEDIA_PROCESSOR_REF = "main"
+# Set this to your staging Worker URL + /internal/media/processing/callback
+# e.g. "https://<staging-worker>.workers.dev/internal/media/processing/callback"
+# Alternatively set WORKER_PUBLIC_BASE_URL and leave this blank.
 GITHUB_MEDIA_PROCESSOR_CALLBACK_URL = ""
+# Required: staging Worker public base URL for building callback URLs automatically.
+# e.g. "https://<staging-worker>.workers.dev"
+WORKER_PUBLIC_BASE_URL = ""
 TELEGRAM_MEDIA_MAX_PHOTO_MB = "9"
 TELEGRAM_MEDIA_MAX_FILE_MB = "49"
 MEDIA_MAX_ASSETS = "10"
@@ -190,6 +199,8 @@ MEDIA_VIDEO_TRANSCODE_POLICY = "copy_if_possible"
 MEDIA_MAX_VIDEO_SIDE = "1920"
 MEDIA_VIDEO_CRF = "23"
 MEDIA_VIDEO_AUDIO_BITRATE = "128k"
+# Set these to your internal Telegram cache/staging chat IDs.
+# e.g. "-100xxxxxxxxxx" for a private supergroup.
 TELEGRAM_MEDIA_STAGING_CHAT_ID = ""
 TELEGRAM_MEDIA_STAGING_THREAD_ID = ""
 TELEGRAM_MEDIA_CACHE_CHAT_ID = ""
@@ -202,11 +213,25 @@ AI_PROVIDER = "mock"
 AI_MODEL = "mock"
 EXTERNAL_LINK_METADATA_ENABLED = "true"
 EXTERNAL_LINK_FETCH_TIMEOUT_MS = "8000"
+
+# Apify autonomous curation pipeline — DISABLED by default in staging.
+# Enable only after verifying routes, category sources, and budget config.
+# Use APIFY_CURATION_DRY_RUN=true first to test without Claude API calls or publishing.
 APIFY_CURATION_ENABLED = "false"
+APIFY_CURATION_DRY_RUN = "true"
 APIFY_DATASET_ID = ""
-CLAUDE_CURATION_THRESHOLD_SCORE = "75"
 APIFY_MAX_ITEMS_PER_RUN = "100"
 APIFY_ENABLED_PLATFORMS = "instagram,x,linkedin"
+
+# Claude curation cost control
+CLAUDE_CURATION_MODEL = "claude-sonnet-4-20250514"
+CLAUDE_CURATION_THRESHOLD_SCORE = "75"
+CLAUDE_CURATION_MAX_CANDIDATES_PER_RUN = "50"
+CLAUDE_CURATION_MAX_TEXT_CHARS_PER_ITEM = "400"
+CLAUDE_CURATION_MAX_CALLS_PER_DAY = "3"
+CLAUDE_CURATION_DAILY_TOKEN_BUDGET = "100000"
+CLAUDE_CURATION_MAX_OUTPUT_TOKENS = "4096"
+CLAUDE_CURATION_MAX_RETRIES = "1"
 [[env.staging.d1_databases]]
 binding = "DB"
 database_name = "your_database_name"

@@ -1,6 +1,26 @@
 import type { CreateMediaAssetInput } from "@curator/db";
 import type { Env } from "../types";
 
+/**
+ * @deprecated LEGACY / DEAD CODE — Do not use or re-import this file.
+ *
+ * This module was an early prototype for dispatching GitHub Actions media processing jobs.
+ * It sends WRONG inputs to the workflow and WRONG callback path:
+ *   - sends `asset_id` instead of `job_id`
+ *   - sends callback to `/internal/media/jobs/complete` (obsolete route, no longer mounted)
+ *     instead of the current `/internal/media/processing/callback`
+ *
+ * The active dispatcher is:
+ *   apps/worker-api/src/telegram-topic-workflow/media-processing-orchestrator.ts
+ *   → dispatchGithubMediaWorkflow()         (internal, dispatches the workflow)
+ *   → maybeDispatchExternalMediaProcessing() (public entry point, creates job + dispatches)
+ *
+ * Do not use `dispatchGitHubMediaProcessor` or any function from this file.
+ * This file is kept only to preserve git history and must be removed in a future cleanup pass.
+ */
+
+
+
 export type MediaProcessorDispatchInput = {
   asset: CreateMediaAssetInput;
   sourceUrl: string;

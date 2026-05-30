@@ -3,6 +3,7 @@ import {
   MediaProcessingJobsRepository,
   ItemsRepository,
   TelegramGeneratedOutputsRepository,
+  TelegramPublishQueueRepository,
   TelegramReviewMessagesRepository,
   TelegramRoutesRepository,
   type CreateMediaAssetInput,
@@ -283,6 +284,14 @@ export async function completeMediaProcessingJob(env: Env, body: CompleteMediaPr
     aspectSummary: summarizeAspectDrift(body.assets ?? [])
   });
 
+  // APIFY CURATION PROMOTE: when the Apify curation pipeline deferred enqueueing (because
+  // media was expected and MEDIA_FINAL_REQUIRE_READY was true), generated outputs are saved
+  // with status "queued_for_publish" but have no publish queue row yet.
+  // Now that media is ready, promote any such orphaned outputs to the publish queue.
+  await maybePromoteOrphanedOutputsToQueue(env, job.itemId).catch((err) => {
+    console.warn(`[MediaOrchestrator] promote-to-queue failed for item ${job.itemId}:`, err instanceof Error ? err.message : String(err));
+  });
+
   const reviewEvaluation = await safeMaybeSendMediaReviewWhenTerminal(env, jobsRepository, job.id, job.itemId, job.sourceUrl);
 
   return {
@@ -509,6 +518,53 @@ function createMediaReadinessSummary(readiness: ItemMediaReadiness, media: Parse
   if (readiness.warnings.length > 0) parts.push(`warnings: ${readiness.warnings.slice(0, 3).join("; ")}`);
   if (readiness.status === "failed") parts.push("text-only fallback review sent because media processing reached a terminal failure state");
   return parts.join(" | ");
+}
+
+/**
+ * Promote orphaned generated outputs to the publish queue after media becomes ready.
+ *
+ * Context: The Apify curation pipeline saves generated outputs with status "queued_for_publish"
+ * but intentionally skips the enqueue() call when MEDIA_FINAL_REQUIRE_READY=true and the item
+ * expects media. This leaves outputs with no publish queue row ("orphaned").
+ *
+ * When the media callback fires and all jobs for the item reach a terminal state, this function
+ * finds those orphaned outputs and promotes them to the publish queue so they proceed normally.
+ *
+ * Outputs that already have a queue row, or are not in "queued_for_publish" status, are skipped.
+ */
+async function maybePromoteOrphanedOutputsToQueue(env: Env, itemId: string): Promise<void> {
+  const generatedOutputsRepository = new TelegramGeneratedOutputsRepository(env.DB);
+  const publishQueueRepository = new TelegramPublishQueueRepository(env.DB);
+  const routesRepository = new TelegramRoutesRepository(env.DB);
+
+  const outputs = await generatedOutputsRepository.listByItemId(itemId);
+  const orphaned = outputs.filter((o) => o.status === "queued_for_publish");
+  if (orphaned.length === 0) return;
+
+  for (const output of orphaned) {
+    try {
+      const existing = await publishQueueRepository.findByGeneratedOutputId(output.id);
+      if (existing) continue; // already in queue — skip
+
+      const routeOutput = await routesRepository.findOutputById(output.routeOutputId);
+      if (!routeOutput || !routeOutput.enabled || !routeOutput.publishEnabled || !routeOutput.finalChatId) continue;
+
+      await publishQueueRepository.enqueue({
+        itemId: output.itemId,
+        generatedOutputId: output.id,
+        routeId: output.routeId,
+        routeOutputId: output.routeOutputId,
+        language: output.language,
+        finalChatId: routeOutput.finalChatId,
+        ...(routeOutput.finalThreadId === undefined ? {} : { finalThreadId: routeOutput.finalThreadId }),
+        priority: routeOutput.queuePriority ?? 0,
+      });
+
+      console.log(`[MediaOrchestrator] Promoted orphaned output ${output.id} to publish queue after media ready for item ${itemId}`);
+    } catch (err) {
+      console.warn(`[MediaOrchestrator] Failed to promote output ${output.id}:`, err instanceof Error ? err.message : String(err));
+    }
+  }
 }
 
 const safeFetch: typeof fetch = (request, init) => fetch(request, init);

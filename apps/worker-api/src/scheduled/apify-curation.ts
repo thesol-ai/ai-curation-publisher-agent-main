@@ -258,12 +258,23 @@ async function processCategoryRun(env: Env, config: Config, category: string, so
               ...(localized.outputTokens !== undefined ? { outputTokens: localized.outputTokens } : {}),
             });
             if (routeOutput.publishEnabled && routeOutput.finalChatId) {
-              await queueRepo.enqueue({
-                itemId: item.id, generatedOutputId: genOut.id, routeId: categoryRoute.id, routeOutputId: routeOutput.id,
-                language: routeOutput.language, finalChatId: routeOutput.finalChatId,
-                ...(routeOutput.finalThreadId === undefined ? {} : { finalThreadId: routeOutput.finalThreadId }),
-                priority: routeOutput.queuePriority ?? 0,
-              });
+              // MEDIA GATE: if media is expected and MEDIA_FINAL_REQUIRE_READY is enforced,
+              // defer enqueue until the media processing callback fires.
+              // The output is saved with status "queued_for_publish" so that
+              // maybePromoteOrphanedOutputsToQueue() in media-processing-orchestrator.ts
+              // can find it and enqueue it automatically once all media jobs are terminal.
+              const mediaFinalRequireReady = getStr(env, "MEDIA_FINAL_REQUIRE_READY") !== "false";
+              const shouldDefer = selected.mediaExpected && mediaFinalRequireReady;
+              if (shouldDefer) {
+                console.log(`[ApifyCuration][${category}] Deferring publish queue for output ${genOut.id} — waiting for media ready on item ${item.id}`);
+              } else {
+                await queueRepo.enqueue({
+                  itemId: item.id, generatedOutputId: genOut.id, routeId: categoryRoute.id, routeOutputId: routeOutput.id,
+                  language: routeOutput.language, finalChatId: routeOutput.finalChatId,
+                  ...(routeOutput.finalThreadId === undefined ? {} : { finalThreadId: routeOutput.finalThreadId }),
+                  priority: routeOutput.queuePriority ?? 0,
+                });
+              }
             }
             outputCount++;
           } catch (e) { console.error(`[ApifyCuration][${category}] Output error:`, e); }
