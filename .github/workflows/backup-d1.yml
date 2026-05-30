@@ -1,0 +1,33 @@
+name: Backup D1 Stub
+
+on:
+  workflow_dispatch:
+    inputs:
+      database_name:
+        description: "Cloudflare D1 database name"
+        required: false
+        default: "your_database_name"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  backup-stub:
+    name: Document D1 backup command
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Backup command placeholder
+        run: |
+          echo "D1 backup/export is intentionally a documented stub."
+          echo "Verify the current Cloudflare-supported export command before enabling automated backups."
+          echo "Candidate to verify manually: wrangler d1 export $DATABASE_NAME --remote --output backups/$DATABASE_NAME.sql"
+          echo "Do not store backup artifacts publicly. Add retention and access controls before enabling uploads."
+        env:
+          DATABASE_NAME: ${{ inputs.database_name }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

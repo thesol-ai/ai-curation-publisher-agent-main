@@ -1,0 +1,44 @@
+name: Worker Smoke Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      worker_base_url:
+        description: "Base URL for the deployed Worker, for example https://example.workers.dev"
+        required: true
+        type: string
+      include_mock_poll:
+        description: "Call POST /internal/poll with mock payload"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    name: Smoke test Worker routes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check /health
+        run: |
+          curl -fsS "$WORKER_BASE_URL/health"
+        env:
+          WORKER_BASE_URL: ${{ inputs.worker_base_url }}
+
+      - name: Check /status
+        run: |
+          curl -fsS "$WORKER_BASE_URL/status"
+        env:
+          WORKER_BASE_URL: ${{ inputs.worker_base_url }}
+
+      - name: Check /internal/poll with mock source
+        if: ${{ inputs.include_mock_poll }}
+        run: |
+          curl -fsS -X POST "$WORKER_BASE_URL/internal/poll" \
+            -H 'content-type: application/json' \
+            -d '{"sources":[{"id":"source_instagram_demo","platform":"instagram","sourceType":"profile","value":"demo_profile","providerPriority":["mock_instagram"]}],"options":{"limit":1}}'
+        env:
+          WORKER_BASE_URL: ${{ inputs.worker_base_url }}

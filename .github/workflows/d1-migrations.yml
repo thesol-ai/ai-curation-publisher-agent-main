@@ -1,0 +1,58 @@
+name: Apply D1 Migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      database_name:
+        description: "Cloudflare D1 database name"
+        required: false
+        default: "your_database_name"
+        type: string
+      remote:
+        description: "Apply to remote D1 database"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    name: Apply D1 migrations
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Apply remote migrations
+        if: ${{ inputs.remote }}
+        run: pnpm exec wrangler d1 migrations apply "$DATABASE_NAME" --remote --config wrangler.toml
+        env:
+          DATABASE_NAME: ${{ inputs.database_name }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Apply local migrations dry run
+        if: ${{ !inputs.remote }}
+        run: pnpm exec wrangler d1 migrations apply "$DATABASE_NAME" --local --config wrangler.toml
+        env:
+          DATABASE_NAME: ${{ inputs.database_name }}

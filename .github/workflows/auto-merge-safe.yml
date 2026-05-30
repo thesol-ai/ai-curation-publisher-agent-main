@@ -1,0 +1,119 @@
+name: Auto Merge Safe PRs
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+      - labeled
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+
+concurrency:
+  group: auto-merge-safe-${{ github.event.pull_request.number || github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  enable-auto-merge:
+    name: Enable auto-merge for allowed PRs
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Enable auto-merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+          IS_DRAFT: ${{ github.event.pull_request.draft }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${IS_DRAFT}" = "true" ]; then
+            echo "Skipping draft PR."
+            exit 0
+          fi
+
+          if [ "${PR_HEAD_REPO}" != "${BASE_REPO}" ]; then
+            echo "Skipping fork PR: ${PR_HEAD_REPO}"
+            exit 0
+          fi
+
+          case "${PR_HEAD_REF}" in
+            docs-*|fix-*|feature-*|restore-*)
+              echo "Allowed branch: ${PR_HEAD_REF}"
+              ;;
+            *)
+              echo "Not an allowed auto-merge branch: ${PR_HEAD_REF}"
+              exit 0
+              ;;
+          esac
+
+          gh pr merge "${PR_NUMBER}" \
+            --repo "${BASE_REPO}" \
+            --squash \
+            --auto \
+            --delete-branch
+
+  merge-after-ci:
+    name: Enable auto-merge after CI success
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.pull_requests[0].number != null
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Enable auto-merge after successful CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          BASE_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          HEAD_REF="$(gh pr view "${PR_NUMBER}" --repo "${BASE_REPO}" --json headRefName --jq .headRefName)"
+          IS_DRAFT="$(gh pr view "${PR_NUMBER}" --repo "${BASE_REPO}" --json isDraft --jq .isDraft)"
+          HEAD_REPO_OWNER="$(gh pr view "${PR_NUMBER}" --repo "${BASE_REPO}" --json headRepositoryOwner --jq .headRepositoryOwner.login)"
+          HEAD_REPO_NAME="$(gh pr view "${PR_NUMBER}" --repo "${BASE_REPO}" --json headRepository --jq .headRepository.name)"
+          HEAD_REPO="${HEAD_REPO_OWNER}/${HEAD_REPO_NAME}"
+
+          if [ "${IS_DRAFT}" = "true" ]; then
+            echo "Skipping draft PR."
+            exit 0
+          fi
+
+          if [ "${HEAD_REPO}" != "${BASE_REPO}" ]; then
+            echo "Skipping fork PR: ${HEAD_REPO}"
+            exit 0
+          fi
+
+          case "${HEAD_REF}" in
+            docs-*|fix-*|feature-*|restore-*)
+              echo "Allowed branch: ${HEAD_REF}"
+              ;;
+            *)
+              echo "Not an allowed auto-merge branch: ${HEAD_REF}"
+              exit 0
+              ;;
+          esac
+
+          gh pr merge "${PR_NUMBER}" \
+            --repo "${BASE_REPO}" \
+            --squash \
+            --auto \
+            --delete-branch

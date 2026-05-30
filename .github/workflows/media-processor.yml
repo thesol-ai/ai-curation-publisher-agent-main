@@ -1,0 +1,125 @@
+name: Telegram media processor
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: Media processing job ID from the Worker
+        required: true
+        type: string
+      item_id:
+        description: Item ID from the Worker
+        required: true
+        type: string
+      source_url:
+        description: External source URL to download with yt-dlp/requests
+        required: true
+        type: string
+      callback_url:
+        description: Worker callback URL, usually /internal/media/processing/callback
+        required: true
+        type: string
+      media_asset_id:
+        description: Optional media asset ID created by the Worker
+        required: false
+        type: string
+      kind:
+        description: Expected media kind, such as image or video
+        required: false
+        type: string
+      telegram_staging_chat_id:
+        description: Optional staging chat override for Telegram upload
+        required: false
+        type: string
+      telegram_staging_thread_id:
+        description: Optional staging topic override for Telegram upload
+        required: false
+        type: string
+      max_photo_mb:
+        description: Practical photo upload limit in MB
+        required: false
+        type: string
+      max_file_mb:
+        description: Practical video/document upload limit in MB
+        required: false
+        type: string
+      max_assets:
+        description: Maximum assets to extract from a single source post, capped at Telegram album limit 10
+        required: false
+        type: string
+      strict_missing_media:
+        description: Fail instead of skip when no downloadable media is found
+        required: false
+        type: string
+
+jobs:
+  process-media:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system media tools
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          else
+            ffmpeg -version | head -n 1
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache Python downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: media-pip-${{ runner.os }}-${{ hashFiles('scripts/media_processor.py') }}
+          restore-keys: |
+            media-pip-${{ runner.os }}-
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install yt-dlp requests gallery-dl instaloader
+
+      - name: Download, stage in Telegram, and callback Worker
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_MEDIA_CACHE_CHAT_ID: ${{ inputs.telegram_staging_chat_id || secrets.TELEGRAM_MEDIA_CACHE_CHAT_ID || secrets.TELEGRAM_MEDIA_STAGING_CHAT_ID }}
+          TELEGRAM_MEDIA_CACHE_THREAD_ID: ${{ inputs.telegram_staging_thread_id || secrets.TELEGRAM_MEDIA_CACHE_THREAD_ID || secrets.TELEGRAM_MEDIA_STAGING_THREAD_ID }}
+          WORKER_INTERNAL_API_SECRET: ${{ secrets.WORKER_INTERNAL_API_SECRET || secrets.INTERNAL_API_SECRET }}
+          MAX_PHOTO_MB: ${{ inputs.max_photo_mb || vars.MAX_PHOTO_MB || '9' }}
+          MAX_FILE_MB: ${{ inputs.max_file_mb || vars.MAX_FILE_MB || '49' }}
+          MEDIA_MAX_ASSETS: ${{ inputs.max_assets || vars.MEDIA_MAX_ASSETS || '10' }}
+          YTDLP_CONCURRENT_FRAGMENTS: ${{ vars.YTDLP_CONCURRENT_FRAGMENTS || '8' }}
+          MEDIA_FASTSTART_COPY: ${{ vars.MEDIA_FASTSTART_COPY || 'true' }}
+          INSTAGRAM_COOKIES_B64: ${{ secrets.INSTAGRAM_COOKIES_B64 }}
+          X_COOKIES_B64: ${{ secrets.X_COOKIES_B64 }}
+          MEDIA_PROCESSING_STRICT: ${{ inputs.strict_missing_media || vars.MEDIA_PROCESSING_STRICT || 'false' }}
+          MEDIA_FALLBACK_PROVIDER_ENDPOINT: ${{ vars.MEDIA_FALLBACK_PROVIDER_ENDPOINT }}
+          MEDIA_ASPECT_DRIFT_THRESHOLD: ${{ vars.MEDIA_ASPECT_DRIFT_THRESHOLD || '0.02' }}
+          MEDIA_FALLBACK_ENABLED: ${{ vars.MEDIA_FALLBACK_ENABLED || 'true' }}
+          MEDIA_FALLBACK_PROVIDER_ORDER_X: ${{ vars.MEDIA_FALLBACK_PROVIDER_ORDER_X || 'direct,gallery_dl,yt_dlp,external' }}
+          MEDIA_FALLBACK_PROVIDER_ORDER_INSTAGRAM: ${{ vars.MEDIA_FALLBACK_PROVIDER_ORDER_INSTAGRAM || 'direct,gallery_dl,instaloader,yt_dlp,external' }}
+          MEDIA_GALLERY_DL_ENABLED: ${{ vars.MEDIA_GALLERY_DL_ENABLED || 'true' }}
+          MEDIA_GALLERY_DL_TIMEOUT_SECONDS: ${{ vars.MEDIA_GALLERY_DL_TIMEOUT_SECONDS || '25' }}
+          MEDIA_INSTALOADER_ENABLED: ${{ vars.MEDIA_INSTALOADER_ENABLED || 'true' }}
+          MEDIA_INSTALOADER_TIMEOUT_SECONDS: ${{ vars.MEDIA_INSTALOADER_TIMEOUT_SECONDS || '30' }}
+          MEDIA_VIDEO_OUTPUT_PROFILE: ${{ vars.MEDIA_VIDEO_OUTPUT_PROFILE || 'telegram_review_optimized' }}
+          MEDIA_VIDEO_TRANSCODE_POLICY: ${{ vars.MEDIA_VIDEO_TRANSCODE_POLICY || 'copy_if_possible' }}
+          MEDIA_MAX_VIDEO_SIDE: ${{ vars.MEDIA_MAX_VIDEO_SIDE || '1920' }}
+          MEDIA_VIDEO_CRF: ${{ vars.MEDIA_VIDEO_CRF || '23' }}
+          MEDIA_VIDEO_AUDIO_BITRATE: ${{ vars.MEDIA_VIDEO_AUDIO_BITRATE || '128k' }}
+        run: |
+          python scripts/media_processor.py \
+            --job-id '${{ inputs.job_id }}' \
+            --item-id '${{ inputs.item_id }}' \
+            --source-url '${{ inputs.source_url }}' \
+            --callback-url '${{ inputs.callback_url }}' \
+            --media-asset-id '${{ inputs.media_asset_id }}' \
+            --expected-kind '${{ inputs.kind }}'

@@ -1,0 +1,183 @@
+name: Agent Task PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_title:
+        description: "Short title for the task"
+        required: true
+        type: string
+      task_body:
+        description: "Detailed task instructions or README note text"
+        required: true
+        type: string
+      branch_prefix:
+        description: "Branch prefix"
+        required: true
+        default: "docs"
+        type: choice
+        options:
+          - docs
+          - fix
+          - feature
+          - restore
+      change_mode:
+        description: "What the workflow should change"
+        required: true
+        default: "task_file"
+        type: choice
+        options:
+          - task_file
+          - readme_note
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: agent-task-pr-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  create-task-pr:
+    name: Create task branch and PR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Create branch name
+        id: branch
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RAW_TITLE="${{ inputs.task_title }}"
+          SLUG="$(echo "${RAW_TITLE}" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed -E 's/[^a-z0-9]+/-/g' \
+            | sed -E 's/^-+|-+$//g' \
+            | cut -c1-48)"
+
+          if [ -z "${SLUG}" ]; then
+            SLUG="task"
+          fi
+
+          BRANCH="${{ inputs.branch_prefix }}-${SLUG}-${{ github.run_number }}"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+
+      - name: Apply requested change
+        shell: bash
+        env:
+          TASK_TITLE: ${{ inputs.task_title }}
+          TASK_BODY: ${{ inputs.task_body }}
+          CHANGE_MODE: ${{ inputs.change_mode }}
+          BRANCH_NAME: ${{ steps.branch.outputs.branch }}
+        run: |
+          set -euo pipefail
+
+          case "${CHANGE_MODE}" in
+            task_file)
+              mkdir -p .github/agent-tasks
+
+              cat > ".github/agent-tasks/${BRANCH_NAME}.md" <<EOF
+# ${TASK_TITLE}
+
+${TASK_BODY}
+
+## Required validation
+
+- pnpm lint
+- pnpm typecheck
+- pnpm test
+- pnpm build
+
+## Safety rules
+
+- Do not push directly to main.
+- Keep all changes in this branch.
+- Open a pull request to main.
+- Merge only after CI passes.
+EOF
+              ;;
+
+            readme_note)
+              python - <<'PY'
+import os
+from pathlib import Path
+
+path = Path("README.md")
+note = os.environ["TASK_BODY"].strip()
+text = path.read_text()
+
+marker = "# AI Curation Publisher Agent\n"
+insert = f"\n> {note}\n"
+
+if not note:
+    raise SystemExit("README note cannot be empty.")
+
+if note in text:
+    raise SystemExit("README already contains the requested note.")
+
+if marker not in text:
+    raise SystemExit("README title marker not found.")
+
+path.write_text(text.replace(marker, marker + insert, 1))
+PY
+              ;;
+
+            *)
+              echo "Unsupported change mode: ${CHANGE_MODE}"
+              exit 1
+              ;;
+          esac
+
+          git diff -- README.md .github/agent-tasks || true
+
+      - name: Commit task branch
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "${{ steps.branch.outputs.branch }}"
+
+          git add README.md .github/agent-tasks || true
+
+          if git diff --cached --quiet; then
+            echo "No changes staged."
+            exit 1
+          fi
+
+          git commit -m "chore: create agent task ${{ inputs.task_title }}"
+          git push origin "${{ steps.branch.outputs.branch }}"
+
+      - name: Open pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > pr-body.md <<EOF
+${{ inputs.task_body }}
+
+## Validation
+
+CI must pass before merge.
+
+## Created by
+
+Agent Task PR workflow.
+EOF
+
+          gh pr create \
+            --base main \
+            --head "${{ steps.branch.outputs.branch }}" \
+            --title "${{ inputs.task_title }}" \
+            --body-file pr-body.md
