@@ -545,7 +545,7 @@ async function dispatchGithubMediaWorkflow(input: { env: EnvWithMediaProcessing;
       "accept": "application/vnd.github+json",
       "authorization": `Bearer ${token}`,
       "content-type": "application/json",
-      "user-agent": "ai-curation-publisher-agent-media-dispatcher"
+      "user-agent": "your-worker-media-dispatcher"
     },
     body: JSON.stringify({
       ref: input.env.GITHUB_MEDIA_WORKFLOW_REF?.trim() || input.env.GITHUB_MEDIA_PROCESSOR_REF?.trim() || "main",

@@ -1,5 +1,5 @@
 {
-  "name": "ai-curation-publisher-agent",
+  "name": "your-worker",
   "version": "0.1.0",
   "private": true,
   "description": "Incremental provider-agnostic social content curator for Telegram and WordPress.",

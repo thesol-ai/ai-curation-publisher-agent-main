@@ -33,7 +33,7 @@ def callback(status, **extra):
     req = request.Request(callback_url, data=data, method="POST", headers={
         "content-type": "application/json",
         "x-internal-api-secret": secret,
-        "user-agent": "ai-curation-publisher-agent-media-processor",
+        "user-agent": "your-worker-media-processor",
     })
     with request.urlopen(req, timeout=30) as response:
         print(response.read().decode("utf-8", "replace"))
@@ -61,7 +61,7 @@ def download(source_url, out_dir):
     parsed = parse.urlparse(source_url)
     suffix = Path(parsed.path).suffix or ".bin"
     target = out_dir / f"source{suffix}"
-    req = request.Request(source_url, headers={"user-agent": "ai-curation-publisher-agent-media-processor"})
+    req = request.Request(source_url, headers={"user-agent": "your-worker-media-processor"})
     with request.urlopen(req, timeout=60) as response:
         size = int(response.headers.get("content-length") or "0")
         if size > MAX_DIRECT_BYTES:

@@ -70,7 +70,7 @@ export async function dispatchGitHubMediaProcessor(input: {
       "accept": "application/vnd.github+json",
       "authorization": `Bearer ${token}`,
       "content-type": "application/json",
-      "user-agent": "ai-curation-publisher-agent-media-dispatcher"
+      "user-agent": "your-worker-media-dispatcher"
     },
     body: JSON.stringify({
       ref,

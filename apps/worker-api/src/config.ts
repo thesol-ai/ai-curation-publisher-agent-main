@@ -6,7 +6,7 @@ export type OperatingMode = "manual_only" | "mock_demo" | "provider_assisted";
 export type AiProvider = "mock" | "openai" | "gemini" | "custom";
 
 export type WorkerOperationalConfig = {
-  serviceName: "ai-curation-publisher-agent";
+  serviceName: "your-worker";
   environment: string;
   logLevel: string;
   mockMode: true;
@@ -75,7 +75,7 @@ export function readOperationalConfig(env: Env): WorkerOperationalConfig {
   const providerConfig = readProviderRuntimeConfig(env);
   const safeSummary = buildSafeConfigSummary(env);
   return {
-    serviceName: "ai-curation-publisher-agent",
+    serviceName: "your-worker",
     environment: env.ENVIRONMENT ?? "unknown",
     logLevel: env.LOG_LEVEL ?? "info",
     mockMode: true,

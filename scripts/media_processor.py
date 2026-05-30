@@ -360,7 +360,7 @@ def download_with_fallback_provider(source_url: str) -> list[Path]:
     if not endpoint:
         return []
     try:
-        response = requests.post(endpoint, json={"url": source_url, "maxAssets": MAX_ASSETS}, timeout=(10, 90), headers={"user-agent": "ai-curation-publisher-agent-media/3.0"})
+        response = requests.post(endpoint, json={"url": source_url, "maxAssets": MAX_ASSETS}, timeout=(10, 90), headers={"user-agent": "your-worker-media/3.0"})
         if not response.ok:
             return []
         payload = response.json()
@@ -410,7 +410,7 @@ def try_direct_download(source_url: str, target_prefix: str = "direct") -> Path 
 def try_direct_download_url(source_url: str, target_prefix: str = "direct") -> Path | None:
     parsed = urlparse(source_url)
     suffix = Path(parsed.path).suffix.lower()
-    with requests.get(source_url, stream=True, timeout=(12, int(os.getenv("MEDIA_DIRECT_DOWNLOAD_TIMEOUT_SECONDS", "60"))), headers={"user-agent": "ai-curation-publisher-agent-media/3.0"}) as response:
+    with requests.get(source_url, stream=True, timeout=(12, int(os.getenv("MEDIA_DIRECT_DOWNLOAD_TIMEOUT_SECONDS", "60"))), headers={"user-agent": "your-worker-media/3.0"}) as response:
         response.raise_for_status()
         content_type = response.headers.get("content-type", "").split(";")[0].strip().lower()
         if suffix not in MEDIA_EXTENSIONS:

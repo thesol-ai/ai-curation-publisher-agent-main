@@ -39,7 +39,7 @@ function verifyRoot() {
   const packagePath = join(root, "package.json");
   if (!existsSync(packagePath) || !existsSync(wranglerPath)) throw new Error("Run this from the repository root, where package.json and wrangler.toml exist.");
   const pkg = JSON.parse(readFileSync(packagePath, "utf8"));
-  if (pkg.name !== "ai-curation-publisher-agent") throw new Error("This does not look like the ai-curation-publisher-agent repository root.");
+  if (pkg.name !== "your-worker") throw new Error("This does not look like the your-worker repository root.");
 }
 function varsBlock(lines) {
   const start = lines.findIndex((line) => line.trim() === "[vars]");

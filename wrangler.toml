@@ -1,4 +1,4 @@
-name = "ai-curation-publisher-agent"
+name = "your-worker"
 main = "apps/worker-api/src/index.ts"
 compatibility_date = "2026-05-01"
 workers_dev = true
@@ -65,7 +65,7 @@ database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "packages/db/migrations"
 
 [env.production]
-name = "ai-curation-publisher-agent"
+name = "your-worker"
 workers_dev = true
 
 [env.production.vars]
@@ -130,18 +130,18 @@ migrations_dir = "packages/db/migrations"
 # Optional future bindings, intentionally commented until real Cloudflare resources exist.
 # [[queues.producers]]
 # binding = "PUBLISH_QUEUE"
-# queue = "ai-curation-publisher-agent-publish"
+# queue = "your-worker-publish"
 #
 # [[r2_buckets]]
 # binding = "MEDIA_BUCKET"
-# bucket_name = "ai-curation-publisher-agent-media"
+# bucket_name = "your-worker-media"
 
 [triggers]
 # Mock-safe scheduled poller. It uses mock providers by default and does not call external APIs.
 crons = ["*/30 * * * *"]
 
 [env.staging]
-name = "your-worker-staging"
+name = "your-worker"
 workers_dev = true
 
 [env.staging.vars]
@@ -191,9 +191,9 @@ MEDIA_MAX_VIDEO_SIDE = "1920"
 MEDIA_VIDEO_CRF = "23"
 MEDIA_VIDEO_AUDIO_BITRATE = "128k"
 TELEGRAM_MEDIA_STAGING_CHAT_ID = ""
-TELEGRAM_MEDIA_STAGING_THREAD_ID = "127"
+TELEGRAM_MEDIA_STAGING_THREAD_ID = ""
 TELEGRAM_MEDIA_CACHE_CHAT_ID = ""
-TELEGRAM_MEDIA_CACHE_THREAD_ID = "127"
+TELEGRAM_MEDIA_CACHE_THREAD_ID = ""
 WORDPRESS_REAL_DRY_RUN_ENABLED = "false"
 WORDPRESS_DEFAULT_STATUS = "draft"
 TELEGRAM_ALLOWED_REVIEWER_IDS = ""
@@ -209,6 +209,6 @@ APIFY_MAX_ITEMS_PER_RUN = "100"
 APIFY_ENABLED_PLATFORMS = "instagram,x,linkedin"
 [[env.staging.d1_databases]]
 binding = "DB"
-database_name = "your_database_name_staging"
+database_name = "your_database_name"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "packages/db/migrations"

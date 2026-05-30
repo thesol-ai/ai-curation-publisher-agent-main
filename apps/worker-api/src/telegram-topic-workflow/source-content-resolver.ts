@@ -40,7 +40,7 @@ async function resolveHtmlMetadata(url: string, timeoutMs: number, fetchImpl: ty
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetchImpl(url, { method: "GET", headers: { "user-agent": "ai-curation-publisher-agent/1.0" }, signal: controller.signal });
+    const response = await fetchImpl(url, { method: "GET", headers: { "user-agent": "your-worker/1.0" }, signal: controller.signal });
     if (!response.ok) return { warning: "External link metadata fetch failed." };
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.includes("text/html") && !contentType.includes("application/xhtml")) return { warning: "External link is not an HTML document." };
@@ -61,7 +61,7 @@ async function fetchJson(url: string, timeoutMs: number, fetchImpl: typeof fetch
     const response = await fetchImpl(url, {
       headers: {
         accept: "application/json",
-        "user-agent": "ai-curation-publisher-agent/1.0"
+        "user-agent": "your-worker/1.0"
       },
       signal: controller.signal
     });
