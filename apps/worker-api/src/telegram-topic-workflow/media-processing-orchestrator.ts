@@ -284,15 +284,23 @@ export async function completeMediaProcessingJob(env: Env, body: CompleteMediaPr
     aspectSummary: summarizeAspectDrift(body.assets ?? [])
   });
 
+  const reviewEvaluation = await safeMaybeSendMediaReviewWhenTerminal(env, jobsRepository, job.id, job.itemId, job.sourceUrl);
+
   // APIFY CURATION PROMOTE: when the Apify curation pipeline deferred enqueueing (because
   // media was expected and MEDIA_FINAL_REQUIRE_READY was true), generated outputs are saved
   // with status "queued_for_publish" but have no publish queue row yet.
-  // Now that media is ready, promote any such orphaned outputs to the publish queue.
-  await maybePromoteOrphanedOutputsToQueue(env, job.itemId).catch((err) => {
-    console.warn(`[MediaOrchestrator] promote-to-queue failed for item ${job.itemId}:`, err instanceof Error ? err.message : String(err));
-  });
-
-  const reviewEvaluation = await safeMaybeSendMediaReviewWhenTerminal(env, jobsRepository, job.id, job.itemId, job.sourceUrl);
+  // Promote only after readiness evaluation confirms all jobs for this item are terminal
+  // (pendingJobs === 0 and status is "ready" or "ready_with_warnings").
+  // This prevents premature promotion when an item has multiple media jobs and only the
+  // first one has finished — the remaining pending jobs would still delay final readiness.
+  const allTerminalAndReady = reviewEvaluation.readiness !== undefined
+    && reviewEvaluation.readiness.pendingJobs === 0
+    && (reviewEvaluation.readiness.status === "ready" || reviewEvaluation.readiness.status === "ready_with_warnings");
+  if (allTerminalAndReady) {
+    await maybePromoteOrphanedOutputsToQueue(env, job.itemId).catch((err) => {
+      console.warn(`[MediaOrchestrator] promote-to-queue failed for item ${job.itemId}:`, err instanceof Error ? err.message : String(err));
+    });
+  }
 
   return {
     ok: true,
@@ -545,6 +553,9 @@ async function maybePromoteOrphanedOutputsToQueue(env: Env, itemId: string): Pro
     try {
       const existing = await publishQueueRepository.findByGeneratedOutputId(output.id);
       if (existing) continue; // already in queue — skip
+
+      const route = await routesRepository.findRouteById(output.routeId);
+      if (!route || !route.enabled) continue;
 
       const routeOutput = await routesRepository.findOutputById(output.routeOutputId);
       if (!routeOutput || !routeOutput.enabled || !routeOutput.publishEnabled || !routeOutput.finalChatId) continue;
