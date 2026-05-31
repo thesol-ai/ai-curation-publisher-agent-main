@@ -1,67 +1,20 @@
 # AI Curation Publisher Agent
 
-AI Curation Publisher Agent is a provider-agnostic content curation, AI rewriting, Telegram review, media staging, and publishing pipeline built on Cloudflare Workers, Cloudflare D1, Telegram, GitHub Actions, and a safe admin dashboard.
+AI Curation Publisher Agent is a provider-agnostic content curation, AI rewriting, Telegram review, media staging, and controlled publishing pipeline built on Cloudflare Workers, Cloudflare D1, Telegram, GitHub Actions, and a React/Vite admin dashboard.
 
-The system is designed for controlled social publishing workflows: ingest content, normalize it, deduplicate it, generate localized editorial output, stage media, send it to a Telegram review topic, allow human edits and approvals, then publish to a final Telegram channel or downstream publishing target.
+The system is designed for review-first social publishing workflows:
 
-This repository follows a PR-first workflow. Real provider calls, real publishing, scheduler side effects, and public-channel publishing are intentionally gated by runtime configuration and secrets.
+1. Ingest content from Telegram source topics or configured sources.
+2. Normalize and deduplicate source items.
+3. Resolve source text, links, and metadata.
+4. Generate localized editorial output with AI prompt profiles.
+5. Stage or process media when needed.
+6. Send review cards to Telegram review topics.
+7. Let humans edit, approve, cancel, send, or schedule output.
+8. Queue approved output safely.
+9. Publish to final Telegram channels only when final publishing is explicitly enabled.
 
----
-
-## Contents
-
-- [What this project does](#what-this-project-does)
-- [Current status](#current-status)
-- [Architecture](#architecture)
-- [Repository structure](#repository-structure)
-- [End-to-end workflow](#end-to-end-workflow)
-- [Core modules](#core-modules)
-- [Runtime environments](#runtime-environments)
-- [Local development](#local-development)
-- [Cloudflare setup](#cloudflare-setup)
-- [Database and migrations](#database-and-migrations)
-- [Telegram setup](#telegram-setup)
-- [AI provider setup](#ai-provider-setup)
-- [Media processing](#media-processing)
-- [Dashboard](#dashboard)
-- [Configuration and secrets](#configuration-and-secrets)
-- [GitHub Actions workflows](#github-actions-workflows)
-- [Testing and validation](#testing-and-validation)
-- [Deployment runbooks](#deployment-runbooks)
-- [Debugging and troubleshooting](#debugging-and-troubleshooting)
-- [Operational safety rules](#operational-safety-rules)
-- [Known limitations](#known-limitations)
-- [Roadmap and follow-ups](#roadmap-and-follow-ups)
-- [Glossary](#glossary)
-
----
-
-## What this project does
-
-The project supports a review-first publishing pipeline for social and web content.
-
-It can:
-
-- Accept content from Telegram source topics or configured sources.
-- Normalize source content into internal `items`.
-- Deduplicate repeated source URLs or previously seen content.
-- Resolve source metadata from external links.
-- Generate localized AI output through prompt profiles.
-- Dispatch media processing through GitHub Actions.
-- Download, prepare, and stage media in Telegram cache/staging chats.
-- Send review cards to Telegram review topics.
-- Support reviewer actions such as edit, approve, send, and queue.
-- Publish approved output to final Telegram channels when explicitly enabled.
-- Expose an admin dashboard for config, prompt profiles, routes, status, and diagnostics.
-- Keep dangerous operations behind internal authentication and environment switches.
-
-The default posture is safe:
-
-- Mock providers by default.
-- Scheduler publishing disabled by default.
-- Final Telegram publishing disabled unless explicitly enabled.
-- Production-sensitive secrets kept outside source control.
-- Dashboard does not receive Cloudflare deployment tokens.
+The default posture is intentionally safe: mock providers by default, scheduler publishing disabled by default, final Telegram publishing disabled by default, and production-sensitive secrets kept out of source control.
 
 ---
 
@@ -73,25 +26,28 @@ Implemented areas include:
 
 - Cloudflare Worker API.
 - Cloudflare D1 persistence.
-- Admin Control Center dashboard.
+- React/Vite Admin Control Center dashboard.
 - Telegram source-topic ingest.
-- Telegram review controls.
+- Telegram topic route management.
+- Telegram review cards and review callbacks.
 - Reply-based Telegram edit workflow.
-- Telegram final publish queue.
+- Telegram publish queue.
+- Safe manual publish controls.
 - Media processing through GitHub Actions.
-- Media staging through Telegram cache chat/topic.
-- AI prompt profiles and output validation.
-- Internal diagnostics for timelines, outputs, media jobs, and publish previews.
-- Staging-only operational reset endpoints.
-- CI, deploy, D1 migration, dashboard deploy, smoke, and media processor workflows.
+- Telegram media cache/staging support.
+- AI prompt profiles, prompt bindings, prompt preview, and output validation.
+- Admin config, validation, metrics, timeline, diagnostics, and safe test endpoints.
+- Apify + Claude autonomous curation tables and trigger routes, disabled by default.
+- WordPress dry-run integration, optional.
+- CI, deploy, D1 migration, dashboard deploy, smoke, media processor, backup, agent-task, and auto-merge workflows.
 
 Not guaranteed by default:
 
-- Real production scraping.
-- Real final public-channel publishing.
-- Fully automated production scheduling.
+- Fully automated production publishing.
+- Real production scraping from every external platform.
 - Guaranteed media extraction from rate-limited social platforms.
-- Local runtime parity with Cloudflare + Telegram + GitHub Actions.
+- Local parity with Cloudflare Workers, Telegram, GitHub Actions, and D1 remote behavior.
+- Production readiness without explicit secrets, real route validation, staging smoke tests, and manual review.
 
 ---
 
@@ -100,7 +56,7 @@ Not guaranteed by default:
 High-level flow:
 
 ```text
-Telegram source topic / configured sources
+Telegram source topic / configured source
         ↓
 Cloudflare Worker
         ↓
@@ -108,9 +64,9 @@ Normalize item + dedupe
         ↓
 Resolve source text and metadata
         ↓
-Run AI prompt profile
+Generate AI output with prompt profile
         ↓
-Dispatch media processor, when media is expected
+Dispatch media processor when external media is expected
         ↓
 GitHub Actions media processor
         ↓
@@ -118,24 +74,24 @@ Telegram media cache/staging chat
         ↓
 Telegram review topic
         ↓
-Reviewer edit / approve / send
+Reviewer edit / status / cancel / send / schedule
         ↓
-Publish queue
+Telegram publish queue
         ↓
-Final Telegram channel
+Final Telegram channel, only when explicitly enabled
 ```
 
-The Worker owns orchestration, internal API routes, authentication checks, config resolution, D1 persistence, and publish decisions.
+The Worker owns request routing, orchestration, internal APIs, runtime config resolution, authentication checks, D1 persistence, review callbacks, media callbacks, publish decisions, and scheduled polling.
 
-GitHub Actions owns expensive or platform-dependent media work such as `yt-dlp`, `gallery-dl`, `instaloader`, `ffmpeg`, Telegram media staging, and callback to the Worker.
+GitHub Actions owns expensive or platform-dependent media work such as `yt-dlp`, `gallery-dl`, `instaloader`, `ffmpeg`, Telegram media staging, and callback delivery to the Worker.
 
-Telegram is used for three distinct roles:
+Telegram is used for three separate roles:
 
 1. Source input.
 2. Human review UI.
 3. Media cache/staging before final publish.
 
-The dashboard is an operator interface over the protected Worker Admin API. It does not talk directly to Cloudflare APIs and does not mutate Cloudflare Worker Secrets.
+The dashboard is an operator interface over protected Worker Admin APIs. It does not call Cloudflare APIs directly and must not receive Cloudflare deployment tokens.
 
 ---
 
@@ -147,18 +103,18 @@ The dashboard is an operator interface over the protected Worker Admin API. It d
 │   ├── dashboard/                  # React/Vite operator dashboard
 │   └── worker-api/                 # Cloudflare Worker API and orchestration
 ├── packages/
-│   ├── ai/                         # AI output schemas, normalization, validation
-│   ├── core/                       # Shared core types/utilities
-│   ├── db/                         # D1 migrations and repositories
-│   ├── media/                      # Media-related shared package
-│   ├── observability/              # Logging/diagnostic utilities
-│   ├── providers/                  # Provider adapters and mocks
-│   ├── scheduler/                  # Polling/scheduling support
-│   ├── telegram/                   # Telegram client, message builders, review controls
-│   └── wordpress/                  # WordPress draft/publish integration
+│   ├── ai/                         # AI schemas, providers, prompt rendering, output validation
+│   ├── core/                       # Shared core types, lifecycle, dedupe, validation utilities
+│   ├── db/                         # D1 migrations, repositories, services
+│   ├── media/                      # Media-related shared services and mocks
+│   ├── observability/              # Logging and diagnostics utilities
+│   ├── providers/                  # Provider adapters, config, mocks, mappers
+│   ├── scheduler/                  # Polling and scheduling support
+│   ├── telegram/                   # Telegram client, parser, review UI, media policy, publish helpers
+│   └── wordpress/                  # WordPress draft/publish output helpers
 ├── scripts/
 │   ├── media_processor.py          # GitHub Actions media processor
-│   ├── media-processor.mjs         # Legacy/helper media processor script
+│   ├── media-processor.mjs         # Legacy/helper media script
 │   ├── setup-cloudflare.mjs        # Cloudflare setup helper
 │   ├── check-production-readiness.mjs
 │   ├── telegram-set-webhook.mjs
@@ -173,9 +129,10 @@ The dashboard is an operator interface over the protected Worker Admin API. It d
 │   ├── smoke-test.yml
 │   ├── agent-task.yml
 │   └── auto-merge-safe.yml
-├── wrangler.toml                   # Cloudflare Worker environments and D1 bindings
-├── .env.example                    # Sanitized local/runtime config template
-├── package.json                    # Monorepo scripts
+├── wrangler.toml
+├── .env.example
+├── package.json
+├── pnpm-lock.yaml
 └── README.md
 ```
 
@@ -186,102 +143,31 @@ apps/worker-api/src/index.ts
 apps/worker-api/src/routes/
 apps/worker-api/src/telegram-topic-workflow/
 apps/worker-api/src/operations/
+apps/worker-api/src/admin-config/
+apps/worker-api/src/security/
 ```
 
-Important Telegram review files:
-
-```text
-apps/worker-api/src/telegram-topic-workflow/review-edit-orchestrator.ts
-apps/worker-api/src/telegram-topic-workflow/review-message-state.ts
-apps/worker-api/src/telegram-topic-workflow/callback-orchestrator.ts
-apps/worker-api/src/telegram-topic-workflow/publish-runner.ts
-packages/telegram/src/
-```
-
-Important dashboard files:
+Important dashboard areas:
 
 ```text
 apps/dashboard/src/ModernDashboardApp.tsx
-apps/dashboard/src/modern.css
+apps/dashboard/src/api.ts
 apps/dashboard/src/storage.ts
+apps/dashboard/src/features/admin-control/
+apps/dashboard/src/shared/
+apps/dashboard/src/modern.css
 ```
 
-Important media files:
+Important media areas:
 
 ```text
 scripts/media_processor.py
 .github/workflows/media-processor.yml
+apps/worker-api/src/telegram-topic-workflow/media-processing-orchestrator.ts
+apps/worker-api/src/media/github-media-processor.ts
+packages/media/src/
+packages/telegram/src/media-policy.ts
 ```
-
----
-
-## End-to-end workflow
-
-### 1. Source ingest
-
-A user or source posts text, a social link, or a web link into a configured Telegram source topic.
-
-The Telegram webhook receives the update and routes it into the topic workflow.
-
-### 2. Item creation
-
-The Worker creates an internal `item` or reuses an existing one when dedupe finds a match.
-
-The item stores normalized source information such as canonical URL, text, provider/platform/source type, author handle, and timestamps.
-
-### 3. Source content resolution
-
-The Worker resolves text and metadata from the source.
-
-For social links, the resolver attempts to extract usable text/caption/metadata. For Instagram and X, media download is handled separately by the media processor.
-
-### 4. AI generation
-
-The route output selects a prompt profile, such as a localized editorial profile.
-
-The AI package validates the provider response against the expected output shape. If the model returns invalid JSON or a structurally invalid response, the system can produce a safe fallback caption rather than publishing broken output.
-
-### 5. Media processing
-
-If media is expected and GitHub Actions media processing is enabled, the Worker dispatches `.github/workflows/media-processor.yml`.
-
-The media processor downloads media, prepares it for Telegram limits, uploads it to a Telegram cache/staging chat, and calls back the Worker with asset metadata and Telegram file IDs.
-
-### 6. Telegram review
-
-The Worker sends a review card to the configured Telegram review topic.
-
-Review cards include generated text, media when ready, metadata, and review controls.
-
-### 7. Reviewer edit workflow
-
-Reviewers can tap **Edit** and then reply to the review controls message with the corrected caption/text.
-
-The edit is stored on the generated output and used for final send/publish.
-
-Important behavior:
-
-```text
-Reply to the review controls message, not a random media/content message.
-```
-
-### 8. Send / publish queue
-
-When reviewers tap **Send**, the system queues or publishes depending on runtime switches.
-
-Final publishing requires:
-
-- Final publish enabled.
-- Bot token configured.
-- Final channel configured.
-- Queue status actionable.
-- Media requirements satisfied, when required.
-
-### 9. Final Telegram publish
-
-If final publishing is enabled, the Worker sends the final text/media to the configured final Telegram channel.
-
-If final publishing is disabled, the output can remain queued or dry-run safe depending on config.
 
 ---
 
@@ -289,96 +175,103 @@ If final publishing is disabled, the output can remain queued or dry-run safe de
 
 ### Worker API
 
-Location:
-
-```text
-apps/worker-api/
-```
+Location: `apps/worker-api/`
 
 Responsibilities:
 
-- Public health/status routes.
+- Public health, status, and readiness routes.
 - Telegram webhook handling.
-- Internal admin routes.
-- Internal media callback.
-- Topic workflow orchestration.
-- Review/edit callbacks.
-- Publish preview and publish runner.
-- Runtime config resolution.
+- Internal admin APIs.
+- Admin config and safe runtime summaries.
+- Telegram topic route management.
+- Telegram topic ingest orchestration.
+- Review callback orchestration.
+- Reply-based review edit handling.
+- Media processing dispatch and callback handling.
+- Publish preview, queue, retry, due-run, and publish-now routes.
+- Apify curation trigger and audit routes.
+- WordPress dry-run route.
+- Scheduler and poller execution.
 - D1 repository usage.
-- Internal auth enforcement.
+- Internal authentication enforcement when `INTERNAL_API_SECRET` is configured.
+
+Main request router: `apps/worker-api/src/index.ts`.
 
 ### Dashboard
 
-Location:
-
-```text
-apps/dashboard/
-```
+Location: `apps/dashboard/`
 
 Responsibilities:
 
-- Admin Control Center UI.
-- Critical publishing controls.
-- Telegram status.
-- Bot token configured/missing status.
-- Prompt profile editing.
-- Route and output visibility.
-- Admin config editing.
-- Secret configured/missing indicators.
-- Recent output diagnostics.
-- Operational state visibility.
+- Worker connection and Admin secret entry.
+- Readiness and operational overview.
+- Settings Center from Worker Admin Config API.
+- AI settings and AI test actions.
+- Provider readiness and optional test actions.
+- Telegram status and permission checks.
+- Route and output builder.
+- Category workspace and topology view.
+- Media jobs and media settings.
+- Prompt Studio, prompt preview, bindings, activation, archive, diff, and run history.
+- Publish queue filters and manual actions.
+- Diagnostics, timeline lookup, dedupe search, and safe config import preview.
+- Technical redacted payload view for debugging.
+
+Main app shell: `apps/dashboard/src/ModernDashboardApp.tsx`.
 
 ### AI package
 
-Location:
-
-```text
-packages/ai/
-```
+Location: `packages/ai/`
 
 Responsibilities:
 
-- Output schema handling.
-- AI output normalization.
-- Validation.
+- Prompt definitions.
+- Localized Telegram prompt rendering.
+- Mock, OpenAI, Gemini, and custom JSON provider wrappers.
+- AI output service.
+- Telegram output schema handling.
+- Output normalization and validation.
 - Safe fallback behavior.
-- Prompt profile expectations.
+
+Runtime AI provider selection happens in `apps/worker-api/src/telegram-topic-workflow/output-orchestrator.ts`.
 
 ### DB package
 
-Location:
-
-```text
-packages/db/
-```
+Location: `packages/db/`
 
 Responsibilities:
 
 - D1 migrations.
 - Repository wrappers.
-- Items, outputs, review messages, media jobs, media assets, publish queue, admin config, audit, and secrets persistence.
+- Items, sources, dedupe keys, outputs, review messages, media assets, media jobs, publish queue, routes, prompt profiles, admin config, audit, and curation persistence.
+
+Important migration groups:
+
+- `0001_initial_schema.sql`: source, item, dedupe, media, prompt, output, review, queue, WordPress, provider log, settings foundation.
+- `0031_telegram_topic_routing.sql`: Telegram routes, route outputs, generated outputs, review messages, publish queue, Telegram media metadata columns.
+- `0033_media_processing_jobs.sql`: async media job tracking.
+- `0035_prompt_studio.sql`: prompt studio support.
+- `0037_apify_curation_pipeline.sql`: Apify source config, crawl runs, and Claude curation decisions.
 
 ### Telegram package
 
-Location:
-
-```text
-packages/telegram/
-```
+Location: `packages/telegram/`
 
 Responsibilities:
 
-- Telegram client abstraction.
-- Real Telegram client.
-- Review controls.
-- Message rendering.
+- Telegram update parsing.
+- Reviewer allowlist helpers.
+- Mock and real Telegram clients.
+- Review message builders.
+- Review callback controls.
 - Media payload helpers.
+- Media publish validation.
 - Final publish helpers.
+- Telegram API error redaction.
 
 ### Media processor
 
-Location:
+Locations:
 
 ```text
 scripts/media_processor.py
@@ -387,12 +280,26 @@ scripts/media_processor.py
 
 Responsibilities:
 
-- Download external media.
-- Use direct requests, `gallery-dl`, `instaloader`, `yt-dlp`, or external fallback providers depending on config.
-- Prepare media with `ffmpeg`.
-- Respect Telegram size/aspect constraints.
-- Upload staged media to Telegram.
-- Callback the Worker with assets and diagnostics.
+- Download external media from source URLs.
+- Try fallback providers in configurable order.
+- Use direct requests, `gallery-dl`, `instaloader`, `yt-dlp`, or an external fallback provider.
+- Preserve aspect ratio.
+- Prepare video/photo assets for Telegram limits.
+- Use `ffmpeg` and `ffprobe` for video inspection and preparation.
+- Upload staged media to Telegram cache/staging chat.
+- Callback the Worker with Telegram file IDs, asset metadata, timings, warnings, and diagnostics.
+
+### WordPress package
+
+Location: `packages/wordpress/`
+
+Responsibilities:
+
+- WordPress output shaping.
+- WordPress draft helpers.
+- Real WordPress client support.
+
+WordPress is optional for the current Telegram-first workflow.
 
 ---
 
@@ -400,21 +307,21 @@ Responsibilities:
 
 ### Local
 
-Used for development, static checks, unit tests, dashboard development, and limited Worker testing.
+Used for development, static checks, unit tests, dashboard development, mock Worker routes, and limited Worker testing.
 
-Local does not fully reproduce Cloudflare + Telegram + GitHub Actions behavior.
+Local does not fully reproduce Cloudflare Worker + Telegram + GitHub Actions + remote D1 behavior.
 
 ### Staging
 
-Used for realistic Telegram review, media processor, D1, and dashboard checks.
+Used for realistic Telegram review, media processor dispatch, D1 migrations, dashboard checks, and controlled integration testing.
 
-Staging may enable real review and GitHub Actions media processing while still keeping provider/scheduler behavior controlled.
+Staging may enable real review and GitHub Actions media processing while keeping provider automation, Claude curation, scheduler publishing, and final public publishing controlled.
 
 ### Production
 
-Production should be enabled cautiously.
+Production must be enabled cautiously. Do not assume production is ready because staging works.
 
-Production publishing requires explicit secrets and runtime switches. Do not assume production is ready just because staging works.
+Production publishing requires explicit secrets, final route validation, bot permissions, final channel configuration, queue readiness, and `TELEGRAM_FINAL_PUBLISH_ENABLED=true`.
 
 ---
 
@@ -424,7 +331,7 @@ Requirements:
 
 - Node.js 22+
 - pnpm 9.15.4
-- Wrangler 3.x or compatible project version
+- Wrangler 3.x or a compatible project version
 - Python 3.11+ for media processor work
 - Cloudflare account for remote Worker/D1 flows
 - Telegram bot for real Telegram flows
@@ -441,972 +348,807 @@ Create local config:
 cp .env.example .env.local
 ```
 
-Load local shell values when needed:
+Run the Worker locally:
 
 ```bash
-set -a
-source .env.local
-set +a
+pnpm dev
 ```
 
-Common checks:
-
-```bash
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm dashboard:build
-```
-
-Run dashboard locally:
+Run the dashboard locally:
 
 ```bash
 pnpm dashboard:dev
 ```
 
-Run Worker locally:
+Run checks:
 
 ```bash
-pnpm worker:dev
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm dashboard:build
 ```
 
-Local smoke checks:
+Run mock Worker smoke checks:
 
 ```bash
-pnpm worker:health
 pnpm worker:smoke
+pnpm worker:e2e:mock
 ```
 
-Local D1 migration:
+Run local media processor manually:
 
 ```bash
-pnpm d1:migrate:local
+python scripts/media_processor.py \
+  --job-id test_job \
+  --item-id test_item \
+  --source-url https://example.com/media.mp4 \
+  --callback-url http://localhost:8787/internal/media/processing/callback
 ```
-
-Real Telegram/media flows are usually tested against staging because they depend on public webhooks, Cloudflare Worker runtime, GitHub Actions workflow dispatch, and Telegram API access.
 
 ---
 
 ## Cloudflare setup
 
-Cloudflare provides:
+The Worker is configured through `wrangler.toml`.
 
-- Worker runtime.
-- D1 database.
-- Worker vars.
-- Worker secrets.
-- Scheduled triggers.
+Main Worker entry:
 
-Main config:
-
-```text
-wrangler.toml
+```toml
+main = "apps/worker-api/src/index.ts"
 ```
 
-Common scripts:
+D1 binding:
+
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "your_database_name"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "packages/db/migrations"
+```
+
+Before staging or production use, replace placeholder values in `wrangler.toml`:
+
+- Worker name.
+- D1 database name.
+- D1 database ID.
+- `WORKER_PUBLIC_BASE_URL`.
+- `GITHUB_MEDIA_PROCESSOR_REPOSITORY`.
+- Telegram media staging/cache chat IDs.
+- Any environment-specific provider switches.
+
+---
+
+## Secrets and configuration
+
+Secrets must be set outside source control.
+
+Common Worker secrets:
 
 ```bash
-pnpm setup:cloudflare
-pnpm worker:deploy
-pnpm worker:deploy:staging
-pnpm worker:deploy:production
-pnpm d1:migrate:remote
-pnpm d1:migrate:production
-pnpm check:production
+wrangler secret put INTERNAL_API_SECRET --env staging
+wrangler secret put TELEGRAM_BOT_TOKEN --env staging
+wrangler secret put TELEGRAM_WEBHOOK_SECRET --env staging
+wrangler secret put GITHUB_MEDIA_PROCESSOR_TOKEN --env staging
+wrangler secret put ANTHROPIC_API_KEY --env staging
+wrangler secret put APIFY_TOKEN --env staging
 ```
 
-Production commands:
+Optional provider secrets:
 
 ```bash
-pnpm worker:deploy:production
-pnpm d1:migrate:production
-pnpm check:production
+wrangler secret put OPENAI_API_KEY --env staging
+wrangler secret put GEMINI_API_KEY --env staging
+wrangler secret put CUSTOM_AI_API_KEY --env staging
+wrangler secret put FIRECRAWL_API_KEY --env staging
+wrangler secret put GETXAPI_KEY --env staging
 ```
 
-Do not run production commands casually. They require Cloudflare auth and production-ready secrets/config.
+GitHub Actions secrets for media processing:
 
-D1 database IDs in `wrangler.toml` identify Cloudflare resources. They are not authentication secrets, but deployment credentials and tokens must never be committed.
+| Secret | Purpose |
+| --- | --- |
+| `TELEGRAM_BOT_TOKEN` | Upload media into Telegram cache/staging chat. |
+| `TELEGRAM_MEDIA_CACHE_CHAT_ID` | Target chat for staged media uploads. |
+| `TELEGRAM_MEDIA_STAGING_CHAT_ID` | Optional separate staging chat. |
+| `WORKER_INTERNAL_API_SECRET` | Must match Worker `INTERNAL_API_SECRET`. |
+| `INSTAGRAM_COOKIES_B64` | Optional base64-encoded Instagram cookies. |
+| `X_COOKIES_B64` | Optional base64-encoded X/Twitter cookies. |
+
+`WORKER_INTERNAL_API_SECRET` in GitHub Actions must exactly match `INTERNAL_API_SECRET` in the Worker. The media processor sends it as `x-internal-api-secret` on callbacks.
+
+---
+
+## Safety switches
+
+Important runtime switches:
+
+| Key | Safe default | Purpose |
+| --- | --- | --- |
+| `PROVIDERS_MODE` | `mock` | Keeps provider behavior mocked unless intentionally changed. |
+| `SCHEDULER_ENABLED` | `false` | Prevents automatic scheduled polling. |
+| `SCHEDULER_DRY_RUN` | `true` | Keeps scheduled runs non-destructive. |
+| `SCHEDULER_ALLOW_REAL_PROVIDERS` | `false` | Blocks real provider calls from scheduler. |
+| `SCHEDULER_ALLOW_PUBLISHING` | `false` | Blocks scheduler publishing. |
+| `MAX_AI_ITEMS_PER_RUN` | `0` | Prevents accidental AI batch runs. |
+| `MAX_PUBLISH_ITEMS_PER_RUN` | `0` | Prevents accidental publish batch runs. |
+| `TELEGRAM_REAL_REVIEW_ENABLED` | environment-specific | Allows real Telegram review messages when enabled. |
+| `TELEGRAM_FINAL_PUBLISH_ENABLED` | `false` | Controls real final Telegram publishing. |
+| `TELEGRAM_PUBLISH_SCHEDULER_ENABLED` | `false` | Controls due queue publishing. |
+| `GITHUB_MEDIA_PROCESSOR_ENABLED` | environment-specific | Controls GitHub Actions media processing. |
+| `APIFY_CURATION_ENABLED` | `false` | Controls autonomous Apify curation. |
+| `APIFY_CURATION_DRY_RUN` | `true` | Keeps curation dry-run until verified. |
+
+Do not enable final publishing until routes, bot permissions, media behavior, queue status, and staging smoke tests have been verified.
 
 ---
 
 ## Database and migrations
 
-D1 stores operational and configuration state.
-
-Common data areas:
-
-- `items`
-- generated outputs
-- review messages
-- review actions
-- publish queues
-- media processing jobs
-- media assets
-- provider logs
-- WordPress posts
-- dedupe keys
-- admin config
-- admin config audit
-- prompt profiles
-- prompt bindings
-- Telegram routes
-- Telegram route outputs
-- secrets
-- D1 migration state
-
 Apply local migrations:
 
 ```bash
-pnpm d1:migrate:local
+pnpm db:migrate:local
 ```
 
-Apply remote migrations:
+Apply staging migrations:
 
 ```bash
-pnpm d1:migrate:remote
+wrangler d1 migrations apply your_database_name --remote --env staging --config wrangler.toml
 ```
 
 Apply production migrations:
 
 ```bash
-pnpm d1:migrate:production
+wrangler d1 migrations apply your_database_name --remote --env production --config wrangler.toml
 ```
 
-### Staging operational reset
+Verify Apify/Claude curation tables after migration `0037`:
 
-Staging includes internal reset endpoints for test data.
-
-Useful endpoints:
-
-```text
-GET  /internal/admin/test-data/counts
-POST /internal/admin/test-data/reset
+```bash
+wrangler d1 execute your_database_name --remote --env staging --command "SELECT name FROM sqlite_master WHERE type='table' AND (name LIKE 'apify%' OR name LIKE 'claude%');"
 ```
 
-The operational reset clears test data such as items, outputs, media jobs, media assets, review messages, queues, provider logs, WordPress posts, and dedupe keys.
+Core D1 entities:
 
-It preserves configuration/state such as:
-
-- `admin_config`
-- `admin_config_audit`
-- `settings`
 - `sources`
-- `prompt_profiles`
-- `prompt_bindings`
+- `items`
+- `dedupe_keys`
+- `media_assets`
+- `media_processing_jobs`
 - `telegram_routes`
 - `telegram_route_outputs`
-- `d1_migrations`
-- `secrets`
-
-Never run destructive/reset endpoints outside staging.
+- `telegram_generated_outputs`
+- `telegram_review_messages`
+- `telegram_publish_queue`
+- `prompt_profiles`
+- `prompt_bindings`
+- `prompt_runs`
+- `apify_curation_sources`
+- `apify_crawl_runs`
+- `claude_curation_decisions`
+- `settings`
+- `admin_config_audit`
 
 ---
 
 ## Telegram setup
 
-Telegram is central to the workflow.
+Use one central Telegram bot.
 
-You need:
+Add the bot to:
 
-- A Telegram bot.
-- A source topic or source chat.
-- A review topic.
-- A media cache/staging topic.
-- A final publish channel.
-- Reviewer user IDs.
-- Bot permissions for the chats/channels involved.
+1. An internal forum supergroup with source topics and review topics.
+2. One or more final channels where approved posts may be published when final publishing is explicitly enabled.
+3. A private media cache/staging chat or topic for media uploads.
 
-Required or common settings:
+Routing is deterministic and based on numeric Telegram IDs, not topic names:
 
 ```text
-TELEGRAM_BOT_TOKEN
-TELEGRAM_WEBHOOK_SECRET
-TELEGRAM_ALLOWED_REVIEWER_IDS
-TELEGRAM_REVIEW_CHAT_ID
-TELEGRAM_FINAL_CHAT_ID
-TELEGRAM_REAL_REVIEW_ENABLED
-TELEGRAM_FINAL_PUBLISH_ENABLED
-TELEGRAM_PUBLISH_SCHEDULER_ENABLED
-TELEGRAM_PUBLISH_DUE_LIMIT
-TELEGRAM_MEDIA_STAGING_CHAT_ID
-TELEGRAM_MEDIA_STAGING_THREAD_ID
-TELEGRAM_MEDIA_CACHE_CHAT_ID
-TELEGRAM_MEDIA_CACHE_THREAD_ID
+source_chat_id + source_thread_id
+  -> telegram_routes row
+  -> category
+  -> prompt_profile
+  -> telegram_route_outputs rows
+  -> review topic(s)
+  -> final channel(s)
 ```
 
-The bot must be able to:
+Topic names are only for humans. The system uses numeric topic IDs.
 
-- Receive webhook updates.
-- Read source topic messages, depending on Telegram privacy settings and group configuration.
-- Send messages to review topics.
-- Send media to cache/staging topics.
-- Send final posts to the final channel.
-- Reach forum topics when thread IDs are used.
+Telegram update field mapping:
 
-Useful validation checks:
+| Telegram update field | Route config field |
+| --- | --- |
+| `message.chat.id` | `sourceChatId` or `reviewChatId` |
+| `message.message_thread_id` | `sourceThreadId` or `reviewThreadId` |
 
-```text
-GET /internal/admin/summary
-GET /internal/admin/config
-GET /internal/telegram/outputs/recent
-GET /internal/media/jobs
+For setup, send a test message in the source topic and inspect Worker logs or safe internal tooling. Do not rely on visible topic names.
+
+Set webhook:
+
+```bash
+pnpm telegram:set-webhook
 ```
 
-Telegram final publishing is controlled by runtime config and is not safe to assume enabled.
+For production and staging, configure `TELEGRAM_WEBHOOK_SECRET` and pass it to Telegram webhook registration so Telegram sends `x-telegram-bot-api-secret-token`.
 
 ---
 
-## AI provider setup
+## Telegram topic routes
 
-The project is mock-first.
+Protected route-management APIs:
 
-Common AI settings:
+| Endpoint | Method | Purpose |
+| --- | --- | --- |
+| `/internal/telegram/topic-routes` | `GET` | List route manager state and validation summary. |
+| `/internal/telegram/topic-routes` | `POST` | Create or upsert a route. |
+| `/internal/telegram/topic-routes/:id` | `PUT` | Update a route. |
+| `/internal/telegram/topic-routes/:id/disable` | `POST` | Disable a route. |
+| `/internal/telegram/topic-routes/:id/outputs` | `POST` | Create or upsert an output for a route. |
+| `/internal/telegram/topic-route-outputs/:id` | `PUT` | Update a route output. |
+| `/internal/telegram/topic-route-outputs/:id/disable` | `POST` | Disable a route output. |
+| `/internal/telegram/topic-routes/validate` | `POST` | Validate stored route config. |
+| `/internal/telegram/outputs/recent` | `GET` | Read recent generated Telegram outputs with redacted errors. |
 
-```text
-AI_PROVIDER=mock
-AI_MODEL=mock
-AI_MODEL_FALLBACKS=[]
-AI_API_KEY=
-OPENAI_API_KEY=
-GEMINI_API_KEY=
-CUSTOM_AI_API_KEY=
+Example route config:
+
+```json
+{
+  "id": "crypto",
+  "category": "crypto",
+  "sourceChatId": "-1001111111111",
+  "sourceThreadId": 101,
+  "promptProfile": "crypto_editorial",
+  "enabled": true
+}
 ```
 
-Supported dashboard-level provider modes include:
+Example output config:
 
-```text
-mock
-openai
-gemini
-custom
+```json
+{
+  "id": "crypto_fa",
+  "language": "fa",
+  "reviewChatId": "-1001111111111",
+  "reviewThreadId": 201,
+  "finalChatId": "@crypto_fa",
+  "enabled": true,
+  "publishEnabled": true,
+  "publishMode": "queued",
+  "timezone": "Europe/Sofia",
+  "allowedPublishWindows": [],
+  "minimumGapMinutes": 30,
+  "maxPostsPerHour": 2,
+  "maxPostsPerDay": 10
+}
 ```
 
-Prompt profiles can define:
+Validation checks include:
 
-- Provider/model hint.
-- Temperature.
-- Max tokens.
-- Output schema reference.
-- Route/language/category behavior.
+- Source chat ID is present.
+- Source topic ID is numeric.
+- Review chat ID is present.
+- Review topic ID is numeric.
+- Final chat/channel ID is present.
+- Enabled route has at least one enabled output.
+- Duplicate source chat/topic is rejected.
+- Duplicate output ID is rejected.
 
-AI output safety:
+---
 
-- Model output is validated.
-- Invalid or truncated JSON can trigger fallback output.
-- If real AI output appears missing, inspect prompt profile settings and generated output diagnostics.
+## Telegram review workflow
 
-Useful endpoint:
+Each configured route output creates one language/channel-specific generated output.
+
+Important statuses:
+
+| Status | Meaning |
+| --- | --- |
+| `ready_for_review` | Draft was generated and sent to review. |
+| `approved` | Reviewer pressed Send or Schedule and the output was approved. |
+| `queued_for_publish` | Output is queued while final publishing is disabled or waiting. |
+| `scheduled` | Output has a future scheduled time. |
+| `publishing` | Real final publish is being attempted. |
+| `published` | Telegram returned a final message ID. |
+| `failed` | Generation, media, or publish failed with a redacted error. |
+| `cancelled` | Reviewer cancelled this output. |
+
+Review controls use output-level callback data:
 
 ```text
-GET /internal/telegram/outputs/debug?generatedOutputId=...
+tgout:send:<generated_output_id>
+tgout:schedule:<generated_output_id>
+tgout:edit:<generated_output_id>
+tgout:cancel:<generated_output_id>
+tgout:status:<generated_output_id>
 ```
 
-This endpoint is internal-only and requires `x-internal-api-secret`.
+`Send` creates or reuses a `telegram_publish_queue` row.
+
+If final publishing is disabled, the callback queues the output safely and returns a message such as:
+
+```text
+Queued. Final Telegram publishing is disabled.
+```
+
+If final publishing is enabled server-side and the schedule allows immediate publishing, the Worker attempts final Telegram publishing and updates generated output and queue statuses.
+
+Edit behavior:
+
+- Edit is allowed only before a publish queue row exists.
+- The reviewer taps **Edit**.
+- The reviewer replies to the review controls message with the revised caption.
+- Channel signatures are still applied automatically.
+- Once a queue row exists, the output is locked from review-caption edits.
+
+---
+
+## Final publishing
+
+Final publishing is controlled by:
+
+```text
+TELEGRAM_FINAL_PUBLISH_ENABLED=false
+```
+
+Default is false.
+
+Required for real final Telegram publishing:
+
+- `TELEGRAM_FINAL_PUBLISH_ENABLED=true`.
+- `TELEGRAM_BOT_TOKEN` configured as Worker secret or encrypted admin secret.
+- Bot has admin/posting permission in the final channel.
+- Route output has a valid `finalChatId`.
+- Queue item is actionable.
+- Media requirements are satisfied when media exists or is expected.
+
+Publish-related endpoints:
+
+| Endpoint | Method | Purpose |
+| --- | --- | --- |
+| `/internal/telegram/publish/queue` | `GET` | List queue rows. |
+| `/internal/telegram/publish/queue` | `POST` | Cancel, reschedule, or bulk publish queue rows. |
+| `/internal/telegram/publish/preview` | `POST` | Preview one queue item before publish. |
+| `/internal/telegram/publish/now` | `POST` | Publish one queue item now, if enabled and ready. |
+| `/internal/telegram/publish/due` | `POST` | Process due queue items, if scheduler publishing is enabled. |
+| `/internal/telegram/publish/retry` | `POST` | Retry failed queue item. |
+
+Retry behavior:
+
+- Retries only rows in `telegram_publish_queue` with `status = failed`.
+- Does not enable final publishing by itself.
+- Returns skipped if `TELEGRAM_FINAL_PUBLISH_ENABLED=false`.
+- Redacts Telegram API errors before storing or returning them.
+- Never exposes bot tokens or raw Telegram API descriptions.
 
 ---
 
 ## Media processing
 
-Media processing can run in different modes.
+Media behavior has two modes:
 
-Common settings:
+1. Telegram file ID reuse for media already received from Telegram source messages.
+2. GitHub Actions processing for external media URLs.
 
-```text
-MEDIA_PROCESSING_MODE=telegram_file_id_reuse
-MEDIA_PROCESSING_MODE=github_actions
-GITHUB_MEDIA_PROCESSOR_ENABLED=true
-GITHUB_MEDIA_PROCESSOR_REPOSITORY=
-GITHUB_MEDIA_PROCESSOR_WORKFLOW_ID=media-processor.yml
-GITHUB_MEDIA_PROCESSOR_REF=main
-GITHUB_MEDIA_PROCESSOR_CALLBACK_URL=
-GITHUB_MEDIA_PROCESSOR_TOKEN=
-```
+Incoming Telegram source messages store:
 
-The GitHub Actions media processor workflow is:
+- `file_id`
+- `file_unique_id`
+- media type
+- MIME type when present
+- size when present
+- width, height, duration when present
+- `media_group_id` when present
 
-```text
-.github/workflows/media-processor.yml
-```
-
-The processor script is:
+External media processing flow:
 
 ```text
-scripts/media_processor.py
+Worker creates media_processing_jobs row
+        ↓
+Worker dispatches .github/workflows/media-processor.yml
+        ↓
+GitHub Actions runs scripts/media_processor.py
+        ↓
+Processor downloads/prepares media
+        ↓
+Processor uploads media to Telegram cache/staging chat
+        ↓
+Processor calls Worker callback
+        ↓
+Worker stores media_assets with Telegram file IDs
+        ↓
+Worker sends review when media readiness policy is satisfied
 ```
 
-Workflow dispatch inputs include:
+Media processor provider chain is configurable:
 
-- `job_id`
-- `item_id`
-- `source_url`
-- `callback_url`
-- `media_asset_id`
-- `kind`
-- Telegram staging overrides
-- media size/asset limits
-- strict missing media mode
+- Direct download.
+- `gallery-dl`.
+- `instaloader`.
+- `yt-dlp`.
+- External fallback provider.
 
-The processor uses:
-
-- direct download attempts
-- `gallery-dl`
-- `instaloader`
-- `yt-dlp`
-- optional external fallback provider
-- `ffmpeg`
-- Telegram upload APIs
-
-Provider order is configurable:
-
-```text
-MEDIA_FALLBACK_PROVIDER_ORDER_X=direct,gallery_dl,yt_dlp,external
-MEDIA_FALLBACK_PROVIDER_ORDER_INSTAGRAM=direct,gallery_dl,instaloader,yt_dlp,external
-MEDIA_FALLBACK_PROVIDER_ORDER=direct,yt_dlp,external
-```
-
-Other media settings:
-
-```text
-TELEGRAM_MEDIA_MAX_PHOTO_MB=9
-TELEGRAM_MEDIA_MAX_FILE_MB=49
-MEDIA_MAX_ASSETS=10
-YTDLP_CONCURRENT_FRAGMENTS=8
-MEDIA_FASTSTART_COPY=true
-MEDIA_REVIEW_WAIT_MODE=all_terminal
-MEDIA_REVIEW_ALLOW_PARTIAL=false
-MEDIA_FINAL_REQUIRE_READY=true
-MEDIA_FINAL_ALLOW_TEXT_FALLBACK=false
-MEDIA_ASPECT_DRIFT_THRESHOLD=0.02
-MEDIA_GALLERY_DL_ENABLED=true
-MEDIA_GALLERY_DL_TIMEOUT_SECONDS=25
-MEDIA_INSTALOADER_ENABLED=true
-MEDIA_INSTALOADER_TIMEOUT_SECONDS=30
-MEDIA_VIDEO_OUTPUT_PROFILE=telegram_review_optimized
-MEDIA_VIDEO_TRANSCODE_POLICY=copy_if_possible
-MEDIA_MAX_VIDEO_SIDE=1920
-MEDIA_VIDEO_CRF=23
-MEDIA_VIDEO_AUDIO_BITRATE=128k
-MEDIA_PROCESSING_STRICT=false
-```
-
-### Social media cookies
-
-The project already supports optional cookies for social media download reliability.
-
-GitHub Actions secrets:
-
-```text
-INSTAGRAM_COOKIES_B64
-X_COOKIES_B64
-```
-
-These are passed to the media processor workflow and decoded into temporary cookie files at runtime.
-
-The project does not provide cookies. Do not use stolen/shared public cookies. If needed, use a dedicated test account, export `cookies.txt` locally, base64 encode it, and store it as a GitHub Actions secret.
-
-Example:
-
-```bash
-base64 -i instagram-cookies.txt | tr -d '\n' | pbcopy
-```
-
-Then create a repository secret:
-
-```text
-Name: INSTAGRAM_COOKIES_B64
-Value: copied base64 value
-```
-
-Important Instagram limitation:
-
-```text
-Some Instagram Reels require login or hit anonymous rate limits. Caption extraction can still work while media download is skipped.
-```
-
-In that case, media jobs may show:
-
-```text
-No downloadable media was found for this source URL.
-```
-
-or logs may show:
-
-```text
-Requested content is not available, rate-limit reached or login required.
-```
-
----
-
-## Dashboard
-
-The dashboard is the operator-facing Admin Control Center.
-
-Common commands:
-
-```bash
-pnpm dashboard:dev
-pnpm dashboard:build
-pnpm dashboard:preview
-```
-
-Dashboard responsibilities:
-
-- Setup guidance.
-- Critical publishing controls.
-- Telegram status.
-- Bot token configured/missing status.
-- Prompt profile editing.
-- Route and output visibility.
-- Admin config editing.
-- Secret configured/missing indicators.
-- Recent output diagnostics.
-- Operational state visibility.
-
-The dashboard talks to protected Worker Admin API routes. It does not call the Cloudflare API directly and does not receive Cloudflare API tokens.
-
----
-
-## Configuration and secrets
-
-Never commit real secrets.
-
-Do not commit:
-
-```text
-.env.local
-.dev.vars
-cookies.txt
-instagram-cookies.txt
-x-cookies.txt
-real API keys
-real bot tokens
-raw application passwords
-Cloudflare API tokens
-```
-
-### Secret/config locations
-
-| Location | Purpose |
-|---|---|
-| `.env.local` | Local shell convenience only. Do not commit. |
-| `.dev.vars` | Local Wrangler Worker secrets. Do not commit. |
-| Cloudflare Worker Secrets | Runtime secrets for deployed Worker. |
-| Cloudflare Worker vars / `wrangler.toml` | Non-secret environment config. |
-| D1 admin config | Editable allowlisted runtime config. |
-| D1 encrypted secrets | Selected dashboard-editable credentials encrypted with `CONFIG_ENCRYPTION_KEY`. |
-| GitHub Actions Secrets | CI/deploy/media workflow secrets. |
-| GitHub Actions Variables | Non-secret workflow config. |
-
-### Bootstrap secrets
-
-These are not dashboard-editable:
-
-```text
-INTERNAL_API_SECRET
-CONFIG_ENCRYPTION_KEY
-```
-
-`INTERNAL_API_SECRET` protects internal endpoints.
-
-`CONFIG_ENCRYPTION_KEY` is required for dashboard-managed encrypted secrets.
-
-Set Cloudflare Worker secrets manually:
-
-```bash
-pnpm wrangler secret put INTERNAL_API_SECRET --env staging
-pnpm wrangler secret put CONFIG_ENCRYPTION_KEY --env staging
-```
-
-Use the correct environment for production:
-
-```bash
-pnpm wrangler secret put INTERNAL_API_SECRET --env production
-pnpm wrangler secret put CONFIG_ENCRYPTION_KEY --env production
-```
-
-### Common Worker secrets
-
-| Key | Required | Purpose |
-|---|---:|---|
-| `INTERNAL_API_SECRET` | Yes | Protects internal API routes. |
-| `CONFIG_ENCRYPTION_KEY` | Required for dashboard secret editing | Encrypts dashboard-managed secret values in D1. |
-| `TELEGRAM_BOT_TOKEN` | Required for real Telegram review/publish | Telegram bot API token. |
-| `TELEGRAM_WEBHOOK_SECRET` | Recommended | Verifies Telegram webhook secret header when configured. |
-| `AI_API_KEY` | Optional | Generic AI API key. |
-| `OPENAI_API_KEY` | If using OpenAI | OpenAI provider credential. |
-| `GEMINI_API_KEY` | If using Gemini | Gemini provider credential. |
-| `CUSTOM_AI_API_KEY` | If using custom AI | Custom provider credential. |
-| `WORDPRESS_APPLICATION_PASSWORD` | If using WordPress | WordPress application password. |
-| `FIRECRAWL_API_KEY` | If using Firecrawl | External provider credential. |
-| `APIFY_TOKEN` | If using Apify | External provider credential. |
-| `GETXAPI_KEY` | If using GetXAPI | External provider credential. |
-| `GITHUB_MEDIA_PROCESSOR_TOKEN` | If Worker dispatches GitHub workflow directly | GitHub token with workflow dispatch permissions. |
-
-### Common GitHub Actions secrets
-
-| Key | Required | Purpose |
-|---|---:|---|
-| `CLOUDFLARE_API_TOKEN` | Deploy workflows | Deploy Worker through Wrangler. |
-| `CLOUDFLARE_ACCOUNT_ID` | Deploy workflows | Cloudflare account target. |
-| `TELEGRAM_BOT_TOKEN` | Media processor | Upload/stage media to Telegram. |
-| `TELEGRAM_MEDIA_CACHE_CHAT_ID` | Media processor | Telegram chat/channel used for media cache. |
-| `TELEGRAM_MEDIA_CACHE_THREAD_ID` | Optional | Telegram forum topic/thread for media cache. |
-| `TELEGRAM_MEDIA_STAGING_CHAT_ID` | Fallback | Alternate staging chat. |
-| `TELEGRAM_MEDIA_STAGING_THREAD_ID` | Optional fallback | Alternate staging topic. |
-| `WORKER_INTERNAL_API_SECRET` | Media processor | Callback auth to Worker. |
-| `INTERNAL_API_SECRET` | Fallback for workflow | Callback auth fallback. |
-| `INSTAGRAM_COOKIES_B64` | Optional | Base64 encoded Instagram cookies.txt. |
-| `X_COOKIES_B64` | Optional | Base64 encoded X/Twitter cookies.txt. |
-
-### Common non-secret vars
+Important media settings:
 
 | Key | Purpose |
-|---|---|
-| `ENVIRONMENT` | local, staging, production. |
-| `LOG_LEVEL` | Logging verbosity. |
-| `PROVIDERS_MODE` | mock/provider mode. |
-| `SCHEDULER_ENABLED` | Enables scheduler behavior. |
-| `SCHEDULER_DRY_RUN` | Keeps scheduler safe. |
-| `SCHEDULER_ALLOW_REAL_PROVIDERS` | Allows real provider calls. |
-| `SCHEDULER_ALLOW_PUBLISHING` | Allows scheduler to publish. |
-| `TELEGRAM_REAL_REVIEW_ENABLED` | Enables real Telegram review messages. |
-| `TELEGRAM_FINAL_PUBLISH_ENABLED` | Enables final Telegram publishing. |
-| `TELEGRAM_PUBLISH_SCHEDULER_ENABLED` | Enables due queue scheduler. |
-| `TELEGRAM_PUBLISH_DUE_LIMIT` | Limits due publish batch size. |
-| `MAX_AI_ITEMS_PER_RUN` | AI processing limit. |
-| `MAX_PROVIDER_ITEMS_PER_RUN` | Provider ingestion limit. |
-| `MAX_PUBLISH_ITEMS_PER_RUN` | Publish limit. |
+| --- | --- |
+| `MEDIA_PROCESSING_MODE` | `telegram_file_id_reuse` or `github_actions`. |
+| `GITHUB_MEDIA_PROCESSOR_ENABLED` | Enables GitHub workflow dispatch. |
+| `GITHUB_MEDIA_PROCESSOR_REPOSITORY` | Repo that owns the media workflow. |
+| `GITHUB_MEDIA_PROCESSOR_WORKFLOW_ID` | Usually `media-processor.yml`. |
+| `WORKER_PUBLIC_BASE_URL` | Used to build callback URL. |
+| `TELEGRAM_MEDIA_CACHE_CHAT_ID` | Telegram media cache/staging chat. |
+| `TELEGRAM_MEDIA_CACHE_THREAD_ID` | Optional media cache topic. |
+| `MEDIA_REVIEW_WAIT_MODE` | Controls when review is sent relative to terminal media jobs. |
+| `MEDIA_REVIEW_ALLOW_PARTIAL` | Allows or blocks partial review behavior. |
+| `MEDIA_FINAL_REQUIRE_READY` | Blocks final publish until media is ready. |
+| `MEDIA_FINAL_ALLOW_TEXT_FALLBACK` | Allows text fallback when media fails. |
+| `MEDIA_MAX_ASSETS` | Max assets per source, capped by Telegram album constraints. |
 
-### Dashboard editable settings
+Known media limitations:
 
-The dashboard can edit allowlisted non-secret settings and selected encrypted credentials. It rejects protected deployment credentials, unknown keys, Cloudflare tokens, and direct publishing/scheduler safety overrides that are intentionally protected.
+- External social media extraction can fail because platforms rate-limit, block, or change behavior.
+- Cookies for Instagram/X may expire and must be rotated operationally.
+- R2 media archive is not currently the primary path.
+- Mixed albums and full media-group final publishing should be treated carefully unless the current branch explicitly supports them.
 
-Secret values are never returned by admin config routes. They are shown as configured/missing only.
+---
+
+## Admin Control Center dashboard
+
+Open the dashboard, enter the Worker URL, enter the Admin secret locally, then click **Save & Connect**.
+
+The dashboard stores connection data in browser storage. Secret values must not be shown back to the operator.
+
+Recommended operator flow:
+
+1. Start with **Overview** to inspect readiness, routes, outputs, backlog, media state, failures, and trends.
+2. Use **Setup** for guided launch checks.
+3. Use **Settings** for metadata-driven config edits.
+4. Use **AI** to configure provider/model behavior and run safe tests.
+5. Use **Providers** to check Firecrawl, Apify, GetXAPI, metadata, and quotas.
+6. Use **Telegram** to verify bot, review topic, media registry topic, and final channel reachability.
+7. Use **Routes** to create, update, or disable source routes and output channels.
+8. Use **Media** to inspect jobs and media registry behavior.
+9. Use **Prompts** to edit prompt profiles, bindings, previews, activation, archive, diff, and run history.
+10. Use **Publishing** to inspect queue rows and run explicit queue actions.
+11. Use **Diagnostics** for issue hints, timeline lookup, dedupe search, and config import preview.
+12. Use **Technical** only for raw redacted payload debugging.
+
+Dashboard safe tests include:
+
+- Worker connection check.
+- Admin auth probe.
+- Telegram bot token check.
+- Telegram chat action permission checks.
+- AI mock/provider readiness check.
+- Provider readiness checks.
+- Route validation.
+- Publish preview.
+- Scheduler dry run.
+- Mock E2E run.
+
+Manual publish actions are real when enabled. They must remain explicit and confirmation-gated.
+
+---
+
+## Prompt Studio
+
+Prompt Studio supports:
+
+- Prompt profile editing.
+- Prompt library.
+- Prompt activation and rollback by activating an older version.
+- Archive.
+- Prompt bindings.
+- Visual line diff.
+- Prompt preview.
+- Prompt run history.
+
+Prompt profiles can be resolved at runtime by route, route output, category, language, content type, and prompt profile key.
+
+Prompt run logging should never block ingestion or review delivery.
+
+Known limitations:
+
+- Visual diff is line-based, not semantic side-by-side diff.
+- Config import preview is read-only and does not apply changes.
+- Provider-specific Apify/GetXAPI tests are not full official-contract tests.
+- Setup wizard is not fully transactional with persisted per-step completion state.
+
+---
+
+## Apify + Claude curation pipeline
+
+The autonomous curation pipeline is disabled by default.
+
+Important settings:
+
+| Key | Safe default | Purpose |
+| --- | --- | --- |
+| `APIFY_CURATION_ENABLED` | `false` | Enables autonomous curation. |
+| `APIFY_CURATION_DRY_RUN` | `true` | Runs without publishing side effects. |
+| `APIFY_DATASET_ID` | empty | Optional shared dataset ID. |
+| `APIFY_MAX_ITEMS_PER_RUN` | `100` | Max fetched candidate items. |
+| `APIFY_ENABLED_PLATFORMS` | `instagram,x,linkedin` | Platform allowlist. |
+| `CLAUDE_CURATION_MODEL` | configured in env | Claude model for scoring/selection. |
+| `CLAUDE_CURATION_THRESHOLD_SCORE` | `75` | Selection threshold. |
+| `CLAUDE_CURATION_MAX_CANDIDATES_PER_RUN` | `50` | Max candidates sent to Claude. |
+| `CLAUDE_CURATION_MAX_TEXT_CHARS_PER_ITEM` | `400` | Input truncation control. |
+| `CLAUDE_CURATION_MAX_CALLS_PER_DAY` | `3` | Cost guard. |
+| `CLAUDE_CURATION_DAILY_TOKEN_BUDGET` | `100000` | Token budget guard. |
+
+Register at least one source per category:
+
+```sql
+INSERT INTO apify_curation_sources (id, category, platform, apify_dataset_id, label, enabled)
+VALUES
+  ('src_crypto_ig', 'crypto', 'instagram', '<your-apify-dataset-id>', 'Crypto Instagram', 1),
+  ('src_crypto_x',  'crypto', 'x',         '<your-apify-dataset-id>', 'Crypto X',         1);
+```
+
+Verify at least one enabled route per curation category:
+
+```sql
+SELECT id, category, enabled FROM telegram_routes WHERE enabled = 1;
+```
+
+Dry-run trigger:
+
+```bash
+curl -X POST https://<staging-worker>.workers.dev/internal/apify/curation/trigger \
+  -H "x-internal-api-secret: <INTERNAL_API_SECRET>" \
+  -H "Content-Type: application/json" \
+  -d '{"dryRun": true}'
+```
+
+Enable Claude curation only after dry-run validation:
+
+```toml
+APIFY_CURATION_ENABLED = "true"
+APIFY_CURATION_DRY_RUN = "false"
+TELEGRAM_FINAL_PUBLISH_ENABLED = "false"
+```
+
+Keep final publishing off until queue and media behavior are verified.
+
+---
+
+## Staging launch checklist
+
+Before enabling real integrations in staging:
+
+1. Set Worker secrets.
+2. Fill required `wrangler.toml` placeholders.
+3. Set GitHub Actions secrets.
+4. Run D1 migrations.
+5. Register Apify curation sources if autonomous curation is needed.
+6. Create and validate Telegram routes and outputs.
+7. Deploy staging Worker.
+8. Connect dashboard to staging Worker.
+9. Run admin auth probe.
+10. Run Telegram bot and chat action tests.
+11. Run route validation.
+12. Run AI/provider readiness tests.
+13. Run media processing smoke test.
+14. Run Telegram review dry-run.
+15. Inspect recent outputs and media jobs.
+16. Inspect publish queue preview.
+17. Enable Claude curation only after dry-run success.
+18. Enable final publishing only as the final step.
+
+Deploy staging:
+
+```bash
+pnpm worker:deploy:staging
+```
+
+Run staging smoke endpoints:
+
+```text
+/health
+/status
+/ready
+/internal/admin/config
+/internal/admin/summary
+/internal/admin/validate
+/internal/admin/metrics/overview
+/internal/admin/prompts
+/internal/admin/ai/test
+/internal/admin/providers/test
+/internal/admin/telegram/test
+/internal/telegram/topic-routes/validate
+/internal/telegram/publish/queue
+```
+
+---
+
+## Rollback
+
+To stop autonomous curation and final publishing:
+
+```toml
+APIFY_CURATION_ENABLED = "false"
+APIFY_CURATION_DRY_RUN = "true"
+TELEGRAM_FINAL_PUBLISH_ENABLED = "false"
+TELEGRAM_PUBLISH_SCHEDULER_ENABLED = "false"
+SCHEDULER_ALLOW_PUBLISHING = "false"
+```
+
+Redeploy:
+
+```bash
+pnpm worker:deploy:staging
+```
+
+If needed, also remove or rotate relevant secrets through Cloudflare and GitHub Actions settings.
 
 ---
 
 ## GitHub Actions workflows
 
-| Workflow | Purpose |
-|---|---|
-| `.github/workflows/ci.yml` | CI checks. |
-| `.github/workflows/deploy-cloudflare.yml` | Validate and deploy staging Worker. |
-| `.github/workflows/deploy-dashboard-pages.yml` | Dashboard Pages deployment. |
-| `.github/workflows/d1-migrations.yml` | D1 migration workflow. |
-| `.github/workflows/backup-d1.yml` | D1 backup/export support. |
-| `.github/workflows/media-processor.yml` | Download, prepare, stage media, and callback Worker. |
-| `.github/workflows/smoke-test.yml` | Smoke checks. |
-| `.github/workflows/agent-task.yml` | Agent task workflow. |
-| `.github/workflows/auto-merge-safe.yml` | Safe auto-merge support. |
+### CI
 
-The Cloudflare deploy workflow runs:
+`ci.yml` runs on pull requests to `main` and pushes to `main`, `dev`, and `phase-*` branches.
+
+It runs:
 
 ```bash
+pnpm install --frozen-lockfile
 pnpm lint
 pnpm typecheck
 pnpm test
-pnpm worker:deploy:staging
+pnpm build
+pnpm dashboard:build
 ```
 
-The media processor workflow runs through `workflow_dispatch` and is usually triggered by the Worker after a media job is created.
+### Media processor
+
+`media-processor.yml` is triggered through `workflow_dispatch` by the Worker.
+
+Required dispatch inputs include:
+
+- `job_id`
+- `item_id`
+- `source_url`
+- `callback_url`
+
+Optional inputs include:
+
+- `media_asset_id`
+- `kind`
+- Telegram staging chat/thread overrides.
+- photo/file MB limits.
+- max assets.
+- strict missing media behavior.
+
+The workflow installs Python dependencies and runs:
+
+```bash
+python scripts/media_processor.py \
+  --job-id <job_id> \
+  --item-id <item_id> \
+  --source-url <source_url> \
+  --callback-url <callback_url> \
+  --media-asset-id <media_asset_id> \
+  --expected-kind <kind>
+```
 
 ---
 
 ## Testing and validation
 
-Core checks:
-
-```bash
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm dashboard:build
-```
-
-Focused checks used often:
-
-```bash
-pnpm test -- --run apps/worker-api/src/routes/internal-telegram-topic-routes.test.ts packages/ai/src/ai-output.service.test.ts
-```
-
-Worker smoke:
-
-```bash
-pnpm worker:health
-pnpm worker:smoke
-```
-
-Telegram smoke helper:
-
-```bash
-pnpm telegram:mvp-smoke
-```
-
-Production readiness:
-
-```bash
-pnpm check:production
-```
-
-Manual staging test checklist:
-
-```text
-1. Send plain text to source topic.
-2. Confirm review card appears.
-3. Tap Edit and reply to review controls.
-4. Confirm updated text appears/gets stored.
-5. Tap Send.
-6. Confirm publish queue/final channel behavior.
-7. Send X URL with media.
-8. Confirm media job ready and review media appears.
-9. Send Instagram URL with media.
-10. Confirm caption generation and media job behavior.
-11. Check recent outputs.
-12. Check media jobs.
-13. Check publish preview.
-```
-
----
-
-## Deployment runbooks
-
-### Deploy staging Worker
-
-Use GitHub Actions when possible:
-
-```text
-Actions → Deploy Cloudflare Worker → Run workflow
-Branch: target branch
-```
-
-Local fallback:
-
-```bash
-pnpm worker:deploy:staging
-```
-
-Pre-checks:
-
-```bash
-pnpm lint
-pnpm typecheck
-pnpm test
-```
-
-Post-checks:
-
-```text
-GET /health
-GET /status
-GET /ready
-GET /internal/admin/summary
-GET /internal/admin/config
-```
-
-### Deploy dashboard
-
-Build locally:
-
-```bash
-pnpm dashboard:build
-```
-
-Deploy through the dashboard Pages workflow when configured:
-
-```text
-Actions → Deploy dashboard pages
-```
-
-### Deploy production Worker
-
-Use production only after staging validation:
-
-```bash
-pnpm check:production
-pnpm d1:migrate:production
-pnpm worker:deploy:production
-```
-
-Production safety checklist:
-
-```text
-- Required Cloudflare secrets exist.
-- Required Telegram secrets exist.
-- Final channel is correct.
-- Reviewer IDs are correct.
-- Publishing switches are intentionally configured.
-- Media cache chat is correct.
-- AI provider is intentionally configured.
-- Scheduler switches are intentionally configured.
-- Rollback plan is known.
-```
-
----
-
-## Debugging and troubleshooting
-
-### Internal auth
-
-Most internal routes require:
-
-```text
-x-internal-api-secret: $INTERNAL_API_SECRET
-```
-
-Example:
-
-```bash
-curl -s \
-  -H "x-internal-api-secret: $INTERNAL_API_SECRET" \
-  "$WORKER_URL/internal/admin/summary"
-```
-
-### Useful internal endpoints
-
-| Endpoint | Purpose |
-|---|---|
-| `GET /internal/admin/summary` | Effective runtime summary and secret configured/missing status. |
-| `GET /internal/admin/config` | Admin config items and safe metadata. |
-| `GET /internal/admin/timeline?sourceUrl=...` | Timeline for an item by source URL. |
-| `GET /internal/admin/timeline?generatedOutputId=...` | Timeline for an output. |
-| `GET /internal/telegram/outputs/recent?limit=...` | Recent Telegram generated outputs. |
-| `GET /internal/telegram/outputs/debug?generatedOutputId=...` | Internal output diagnostics. |
-| `GET /internal/media/jobs?limit=...` | Recent media jobs. |
-| `POST /internal/telegram/publish/preview` | Publish preview and blockers. |
-| `GET /internal/admin/test-data/counts` | Staging test data counts. |
-| `POST /internal/admin/test-data/reset` | Staging operational reset. |
-
-### Bot token shows missing in dashboard
-
-Check backend truth first:
-
-```bash
-curl -s \
-  -H "x-internal-api-secret: $INTERNAL_API_SECRET" \
-  "$WORKER_URL/internal/admin/summary"
-```
-
-Then check admin config:
-
-```bash
-curl -s \
-  -H "x-internal-api-secret: $INTERNAL_API_SECRET" \
-  "$WORKER_URL/internal/admin/config"
-```
-
-If backend is correct but dashboard is stale:
-
-```bash
-pnpm dashboard:build
-```
-
-Then redeploy/refresh the dashboard.
-
-### Instagram caption fallback
-
-Inspect generated output:
-
-```bash
-curl -s \
-  -H "x-internal-api-secret: $INTERNAL_API_SECRET" \
-  "$WORKER_URL/internal/telegram/outputs/debug?generatedOutputId=YOUR_OUTPUT_ID"
-```
-
-Look for:
-
-```text
-validationErrors
-rawText
-caption
-headline
-summary
-sourceAttributionDebug
-```
-
-Common causes:
-
-- AI returned invalid JSON.
-- AI output was truncated.
-- Prompt profile max tokens too low.
-- Output schema mismatch.
-- Source text was empty or low quality.
-
-### Instagram media skipped
-
-Check recent media jobs:
-
-```bash
-curl -s \
-  -H "x-internal-api-secret: $INTERNAL_API_SECRET" \
-  "$WORKER_URL/internal/media/jobs?limit=10"
-```
-
-Open the GitHub run URL from the media job.
-
-Common causes:
-
-- Instagram requires login.
-- Anonymous requests are rate-limited.
-- `yt-dlp` or `gallery-dl` could not access the post.
-- Cookie secret missing/expired.
-- Media was detected but failed Telegram constraints.
-- Callback received skipped/failed status.
-
-If logs show login/rate-limit required, configure:
-
-```text
-INSTAGRAM_COOKIES_B64
-```
-
-### Review edit not applied
-
-Expected flow:
-
-```text
-1. Tap Edit on review controls.
-2. Reply to the review controls message with the new caption/text.
-3. The system stores the edit on the generated output.
-4. Send uses the edited output.
-```
-
-Do not reply to an unrelated media message.
-
-### Publish preview blocked
-
-Use:
-
-```bash
-curl -s \
-  -H "x-internal-api-secret: $INTERNAL_API_SECRET" \
-  -H "content-type: application/json" \
-  -X POST \
-  "$WORKER_URL/internal/telegram/publish/preview" \
-  --data '{"generatedOutputId":"YOUR_OUTPUT_ID"}'
-```
-
-Common blockers:
-
-- Queue row not found.
-- Queue status already published.
-- Final publishing disabled.
-- Bot token missing.
-- Media not ready.
-- Final chat/channel missing.
-- Output not actionable.
-
-### D1 binding not found during deploy
-
-This usually means the active Cloudflare account does not contain the D1 database ID configured in `wrangler.toml`.
-
-Check:
-
-```bash
-pnpm wrangler d1 list
-```
-
-Confirm Cloudflare account credentials, selected environment, and D1 database ID.
-
----
-
-## Operational safety rules
-
-- Never commit secrets.
-- Never commit cookies.
-- Never put Cloudflare API tokens in dashboard config.
-- Use staging for destructive tests.
-- Do not run production deploys casually.
-- Do not enable final publishing until bot, final channel, reviewer IDs, and media behavior are verified.
-- Keep scheduler publishing disabled unless intentionally launching automation.
-- Treat GitHub Actions logs as operationally sensitive.
-- Use a dedicated test account for social media cookies.
-- Rotate cookies/API tokens if they were exposed.
-- Prefer PRs and small reviewable changes.
-
----
-
-## Known limitations
-
-- Some Instagram Reels require login/cookies or hit rate limits. Caption extraction may still work while media download is skipped.
-- Social media extractors are inherently flaky because platforms change behavior and rate limits.
-- Local development does not fully reproduce Cloudflare Worker + Telegram webhook + GitHub Actions runtime.
-- AI output can be invalid or truncated; fallback behavior is intentional but should be monitored.
-- Media processor reliability depends on GitHub Actions availability and external platform access.
-- Production scheduler/publishing must be enabled carefully and intentionally.
-- WordPress integration is available but should be treated separately from Telegram launch readiness.
-
----
-
-## Roadmap and follow-ups
-
-Recommended follow-ups:
-
-- Clearer review-card messaging when media is skipped because login/rate-limit is required.
-- Optional retry path for media jobs.
-- Better AI invalid JSON retry/repair path.
-- More dashboard diagnostics for media processor failures.
-- Dedicated cookie setup guide for Instagram/X test accounts.
-- Production launch checklist.
-- Stronger separation between staging and production docs.
-- More route-level and prompt-profile examples.
-- Expanded runbooks for rollback and incident response.
-
----
-
-## Glossary
-
-| Term | Meaning |
-|---|---|
-| Item | Normalized source content record. |
-| Source URL | External URL from Telegram/source input. |
-| Dedupe key | Key used to prevent repeated processing. |
-| Route | Category/topic routing configuration. |
-| Route output | Output target/language/channel configuration for a route. |
-| Prompt profile | AI prompt/model/output configuration. |
-| Generated output | AI-created output prepared for review/publish. |
-| Review message | Telegram message sent to review topic. |
-| Review controls | Telegram inline controls for edit/approve/send actions. |
-| Edit workflow | Reviewer replies to controls message to update output text. |
-| Media job | D1 record tracking external media processing. |
-| Media asset | Prepared/staged media result with Telegram file metadata. |
-| Cache chat | Telegram chat/channel used to stage media and store file IDs. |
-| Source topic | Telegram topic where input content is submitted. |
-| Review topic | Telegram topic where human review happens. |
-| Final channel | Telegram destination for approved published output. |
-| Publish queue | Queue of outputs waiting for final publish. |
-| Internal API secret | Header secret protecting internal admin/debug routes. |
-
----
-
-## Quick command reference
+Run before opening or merging a PR:
 
 ```bash
 pnpm install
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm build
 pnpm dashboard:build
-pnpm dashboard:dev
-pnpm worker:dev
-pnpm worker:deploy:staging
-pnpm worker:deploy:production
-pnpm d1:migrate:local
-pnpm d1:migrate:remote
-pnpm d1:migrate:production
-pnpm check:production
 ```
+
+Recommended staging smoke tests:
+
+- `/health`
+- `/status`
+- `/ready`
+- `/internal/admin/config`
+- `/internal/admin/summary`
+- `/internal/admin/validate`
+- `/internal/admin/metrics/overview`
+- `/internal/admin/prompts`
+- `/internal/admin/ai/test`
+- `/internal/admin/providers/test`
+- `/internal/admin/telegram/test`
+- `/internal/telegram/topic-routes/validate`
+- `/internal/telegram/outputs/recent`
+- `/internal/media/jobs`
+- `/internal/telegram/publish/queue`
+- `/internal/telegram/publish/preview`
+
+Manual review before production:
+
+- Confirm no raw secret values appear in dashboard pages or API responses.
+- Confirm `INTERNAL_API_SECRET` is configured.
+- Confirm `TELEGRAM_WEBHOOK_SECRET` is configured.
+- Confirm reviewer allowlist is correct.
+- Confirm route source chat/topic IDs are numeric and correct.
+- Confirm review topics and final channels are correct.
+- Confirm bot permissions in review topics, media cache, and final channels.
+- Confirm final publishing is intentionally enabled.
+- Confirm media cache/staging uploads work.
+- Confirm failed publish rows cannot be accidentally duplicated.
+- Confirm published rows are not actionable.
+- Confirm config import preview cannot mutate D1.
 
 ---
 
-## Maintainer notes
+## Operational safety rules
 
-This project is intentionally safety-first.
+- Never commit real secrets.
+- Keep final publishing disabled until staging validation is complete.
+- Keep scheduler publishing disabled unless explicitly supported by the active phase.
+- Do not rely on Telegram topic names for routing.
+- Do not give the dashboard Cloudflare deployment tokens.
+- Do not expose raw Telegram API errors to operators or users.
+- Do not expose bot tokens, provider API keys, cookies, or internal secrets in API responses.
+- Treat media extraction from social platforms as best-effort.
+- Treat real publish actions as irreversible external side effects.
+- Keep destructive config import disabled unless a transactional import workflow exists.
 
-When adding new capabilities:
+---
 
-1. Keep mock/default behavior safe.
-2. Add config gates for real side effects.
-3. Keep secrets out of source control.
-4. Add internal diagnostics before guessing.
-5. Prefer staging validation before production.
-6. Keep PRs focused.
-7. Update this README when operational behavior changes.
+## Known limitations
+
+- The project is staging-operational, not automatically production-ready.
+- Local development does not fully reproduce Cloudflare, Telegram, GitHub Actions, and remote D1 behavior.
+- Final Telegram publishing is disabled by default.
+- Scheduler publishing is disabled by default.
+- Real provider execution requires explicit credentials and validation.
+- AI fallback model execution is not a substitute for provider-specific testing.
+- External media extraction can fail because of platform rate limits, login walls, cookies, or upstream changes.
+- R2 media archiving is not the primary implemented path.
+- Dashboard orchestration still has a large app shell and should continue to be decomposed.
+- Config names include legacy aliases and should be canonicalized over time.
+- Config import preview is read-only.
+- Setup wizard is practical but not fully transactional.
+
+---
+
+## Recommended next hardening work
+
+1. Require internal auth for all `/internal/*` routes in production even if `INTERNAL_API_SECRET` is missing.
+2. Require `TELEGRAM_WEBHOOK_SECRET` in staging and production.
+3. Canonicalize media, AI, provider, and scheduler config into typed config readers.
+4. Replace the route `if` chain in `apps/worker-api/src/index.ts` with a route registry.
+5. Split `ModernDashboardApp.tsx` into domain hooks and page containers.
+6. Add E2E staging smoke tests for source topic -> review -> edit -> queue -> preview -> publish path.
+7. Add media analytics by platform/provider/failure reason.
+8. Add provider-specific Apify/GetXAPI contract tests.
+9. Add richer prompt diff and production prompt-run logging verification.
+10. Add documented cookie rotation procedure for Instagram/X media extraction.
+
+---
+
+## Glossary
+
+| Term | Meaning |
+| --- | --- |
+| Source topic | Telegram forum topic where source content is posted. |
+| Review topic | Telegram forum topic where generated review cards are sent. |
+| Route | Mapping from source chat/topic to category and prompt profile. |
+| Route output | Language/review/final-channel configuration for a route. |
+| Generated output | AI or fallback output created for a route output. |
+| Review card | Telegram message shown to human reviewers with controls. |
+| Publish queue | D1 queue table for approved Telegram outputs. |
+| Media cache/staging chat | Private Telegram chat/topic used to upload and reuse media file IDs. |
+| Final channel | Telegram channel where approved content is finally published. |
+| Prompt profile | Versioned system/user prompt configuration. |
+| Prompt binding | Mapping that determines which prompt applies to a category/language/output. |
+| Curation run | Apify + Claude pipeline execution for candidate selection. |
+| Safe default | Configuration that prevents real external side effects unless explicitly enabled. |
